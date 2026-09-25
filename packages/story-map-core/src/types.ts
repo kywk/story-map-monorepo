@@ -18,6 +18,7 @@ export interface StoryMedia {
 export interface StorySlide {
   id?: string;
   note?: string;
+  notePath?: string;
   title?: string;
   text?: string;
   location?: StoryLocation;
@@ -29,6 +30,10 @@ export type StoryOrder = 'asc' | 'desc';
 
 export const DEFAULT_STORY_ORDER: StoryOrder = 'asc';
 export const DEFAULT_DATE_FIELD = 'date-created';
+
+export type StoryNoteDisplay = 'basic' | 'link' | 'full';
+
+export const DEFAULT_NOTE_DISPLAY: StoryNoteDisplay = 'link';
 
 export interface StoryMapOptions {
   center?: LatLngTuple;
@@ -57,6 +62,7 @@ export interface StoryMapSourceConfig {
   noteFolder?: string;
   order: StoryOrder;
   dateField: string;
+  noteDisplay: StoryNoteDisplay;
   map: StoryMapOptions;
   slides?: StorySlide[];
 }

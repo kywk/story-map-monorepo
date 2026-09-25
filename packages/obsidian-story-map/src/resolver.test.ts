@@ -6,6 +6,7 @@ import { resolveObsidianStory } from './resolver.js';
 interface FakeFile {
   path: string;
   frontmatter: Record<string, unknown>;
+  body?: string;
 }
 
 function basename(filePath: string): string {
@@ -55,14 +56,15 @@ function makeApp(files: FakeFile[]): App {
     vault: {
       getMarkdownFiles: () => all.filter((file) => file.path.toLowerCase().endsWith('.md')),
       getResourcePath: (file: { path: string }) => `app://vault/${file.path}`,
+      cachedRead: (file: { body?: string }) => Promise.resolve(file.body ?? ''),
     },
   };
 
   return app as unknown as App;
 }
 
-function note(path: string, frontmatter: Record<string, unknown>): FakeFile {
-  return { path, frontmatter };
+function note(path: string, frontmatter: Record<string, unknown>, body?: string): FakeFile {
+  return { path, frontmatter, ...(body === undefined ? {} : { body }) };
 }
 
 describe('resolveObsidianStory with explicit slides', () => {
@@ -182,5 +184,72 @@ describe('resolveObsidianStory folder discovery', () => {
     const story = await resolveObsidianStory(app, source, 'Story.md');
     expect(story.slides).toHaveLength(1);
     expect(story.slides[0]?.title).toBe('Only explicit');
+  });
+});
+
+describe('resolveObsidianStory noteDisplay', () => {
+  const body = [
+    '---',
+    'unused: true',
+    '---',
+    '',
+    '# Real body',
+    '',
+    'Full note text.',
+  ].join('\n');
+  const files: FakeFile[] = [
+    note(
+      'Places/Santiago.md',
+      {
+        'story-map-note': true,
+        title: 'Santiago',
+        'date-created': '2026-01-15',
+        description: 'Frontmatter summary.',
+      },
+      body,
+    ),
+  ];
+
+  it('defaults to link mode and attaches the source note path', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({ noteFolder: 'Places' });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+
+    expect(source.noteDisplay).toBe('link');
+    expect(story.slides[0]?.notePath).toBe('Places/Santiago.md');
+    expect(story.slides[0]?.text).toBe('Frontmatter summary.');
+  });
+
+  it('basic mode omits the note link and keeps frontmatter text', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({ noteFolder: 'Places', noteDisplay: 'basic' });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+
+    expect(story.slides[0]?.notePath).toBeUndefined();
+    expect(story.slides[0]?.text).toBe('Frontmatter summary.');
+  });
+
+  it('full mode replaces text with the stripped note body', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({ noteFolder: 'Places', noteDisplay: 'full' });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+
+    expect(story.slides[0]?.notePath).toBeUndefined();
+    expect(story.slides[0]?.text).toBe('# Real body\n\nFull note text.');
+  });
+
+  it('applies full mode to explicitly referenced notes', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({
+      noteDisplay: 'full',
+      slides: [{ note: '[[Santiago]]' }],
+    });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+
+    expect(story.slides[0]?.text).toBe('# Real body\n\nFull note text.');
   });
 });

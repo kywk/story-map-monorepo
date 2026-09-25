@@ -125,7 +125,7 @@ Owns:
 - `StoryMapConfig`, `StorySlide`, `StoryLocation`, `StoryMedia` types;
 - YAML parsing and validation;
 - source configuration normalization;
-- `noteFolder`, `order`, and `dateField` configuration types/defaults;
+- `noteFolder`, `order`, `dateField`, and `noteDisplay` configuration types/defaults;
 - normalization of a small set of Obsidian Leaflet-compatible keys;
 - WikiLink reference parsing helpers;
 - location coercion helpers used by adapters.
@@ -168,6 +168,7 @@ Owns:
 - recursively scanning configured `noteFolder`;
 - including only folder-discovered Markdown files with `story-map-note: true`;
 - reading the configured `dateField` from note frontmatter;
+- applying the configured `noteDisplay` mode (basics, title link, or full note body);
 - applying `order: asc | desc` to automatically discovered notes;
 - resolving explicit `slide.note` WikiLinks;
 - reading note frontmatter through Obsidian metadata APIs;
@@ -206,6 +207,7 @@ interface StoryMapSourceConfig {
   noteFolder?: string;
   order?: 'asc' | 'desc';       // default: 'asc'
   dateField?: string;           // default: 'date-created'
+  noteDisplay?: 'basic' | 'link' | 'full';  // default: 'link'
 
   map: {
     center?: [number, number];
@@ -256,6 +258,18 @@ No other configurable sorting, grouping, filtering, or query behavior is part of
 
 For deterministic behavior, notes with a missing or unparseable date are retained after notes with valid dates. Ties are resolved by Vault-relative path ascending. These are internal stability rules, not configurable sort features.
 
+### 6.3 Note display
+
+`noteDisplay` selects how a resolved note is presented in the slide panel:
+
+- `basic` — frontmatter-derived basics only (`title`, `location`, `description`/`summary`, `cover`);
+- `link` — the same basics, but the slide title links to the source note; hovering shows the
+  Obsidian page preview and clicking opens the note in a new tab (default);
+- `full` — the same basics, with the note's Markdown body (frontmatter stripped) used as slide text.
+
+The renderer stays platform-agnostic: the Obsidian adapter resolves `link` into an opaque
+`slide.notePath` plus host callbacks, and resolves `full` into `slide.text`.
+
 ## 7. Canonical render model
 
 Platform adapters resolve source-specific behavior before rendering.
@@ -281,6 +295,7 @@ interface StoryMapConfig {
 interface StorySlide {
   id?: string;
   note?: string; // adapter input; renderer ignores unresolved references
+  notePath?: string; // adapter-resolved opaque source reference for link display
   title?: string;
   text?: string;
   location?: {
@@ -327,7 +342,8 @@ Compatibility rules:
 - `mapzoom` may be collected for compatibility but advanced marker visibility behavior is not required in MVP;
 - `description` or `summary` may provide slide text;
 - `cover`, `image`, or `media` may provide slide media;
-- the complete Markdown note body is not automatically used as slide text in v1.
+- with `noteDisplay: full`, the Markdown note body (frontmatter stripped) becomes slide text;
+- otherwise the complete Markdown note body is not used as slide text.
 
 ## 9. Note resolution precedence
 
@@ -357,6 +373,8 @@ Required behavior:
 - source `height` remains meaningful to standalone/Docusaurus embedded hosts;
 - React and Leaflet instances are destroyed cleanly when the view unloads;
 - pane/container resize causes Leaflet size invalidation;
+- note `link` display registers a Page preview hover source, shows the page preview on title
+  hover, and opens the note in a new tab on title click;
 - invalid frontmatter or StoryMap YAML produces an in-view error rather than breaking the workspace.
 
 Default-open behavior is limited to detected `story-map: true` documents and uses a scoped `WorkspaceLeaf.setViewState` wrapper (the same approach as the Kanban plugin) so a file is rewritten to the StoryMap view only when its frontmatter marks it as a StoryMap. Blanket interception of unrelated Markdown files remains out of scope.
@@ -418,6 +436,5 @@ Explicitly defer:
 - advanced marker icon compatibility;
 - Leaflet `mapzoom` visibility semantics;
 - WikiLink rendering inside story Markdown body;
-- using the complete note body as slide content;
 - automated copying of every Vault asset into Docusaurus static output;
 - Markdown files outside the active Vault/filesystem `vaultRoot`.

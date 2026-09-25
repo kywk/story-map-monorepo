@@ -11,6 +11,11 @@ export function parseWikiLinkRef(value: string): string {
   return ref.trim();
 }
 
+export function stripFrontmatter(markdown: string): string {
+  const match = /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(markdown);
+  return match ? markdown.slice(match[0].length) : markdown;
+}
+
 export function coerceLocation(value: unknown, zoom?: unknown): StoryLocation | undefined {
   const parsedZoom = typeof zoom === 'number' && Number.isFinite(zoom) ? zoom : undefined;
 

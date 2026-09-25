@@ -46,12 +46,16 @@ map:
 noteFolder: Travel/Chile/Places
 order: asc
 dateField: date-created
+noteDisplay: link
 ```
 ````
 
 `noteFolder` recursively discovers Markdown notes with `story-map-note: true`, ordered
 by `dateField` using `order: asc | desc`. When explicit `slides` are present, they keep
 their exact order and `noteFolder` is ignored.
+
+`noteDisplay: basic | link | full` controls how resolved notes are shown (default `link`):
+frontmatter basics, basics with a hover-preview/title link to the note, or the note's full body.
 
 Obsidian and Remark adapters may resolve `note`, Vault frontmatter, WikiLinks, and local assets before passing the final `StoryMapConfig` to `react-story-map`.
 

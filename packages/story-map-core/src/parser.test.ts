@@ -14,6 +14,7 @@ import {
   parseWikiLinkRef,
   slideFromNoteFrontmatter,
   sortNoteDates,
+  stripFrontmatter,
   toStoryMapConfig,
   toTimestamp,
   validCoordinates,
@@ -223,6 +224,16 @@ describe('parseStoryMapSourceYaml', () => {
     expect(() => parseStoryMapSourceYaml('order: sideways')).toThrow();
   });
 
+  it('defaults noteDisplay to link and accepts basic or full', () => {
+    expect(parseStoryMapSourceYaml('title: Chile').noteDisplay).toBe('link');
+    expect(parseStoryMapSourceYaml('noteDisplay: basic').noteDisplay).toBe('basic');
+    expect(parseStoryMapSourceYaml('noteDisplay: full').noteDisplay).toBe('full');
+  });
+
+  it('rejects invalid noteDisplay values', () => {
+    expect(() => parseStoryMapSourceYaml('noteDisplay: fancy')).toThrow();
+  });
+
   it('accepts an empty slides array', () => {
     const source = parseStoryMapSourceYaml('slides: []');
     expect(source.slides).toEqual([]);
@@ -360,6 +371,17 @@ describe('slideFromNoteFrontmatter', () => {
     const slide = slideFromNoteFrontmatter({ summary: 'Summary text' }, 'Note Name');
     expect(slide.title).toBe('Note Name');
     expect(slide.text).toBe('Summary text');
+  });
+});
+
+describe('stripFrontmatter', () => {
+  it('removes a leading YAML frontmatter block', () => {
+    expect(stripFrontmatter('---\ntitle: A\n---\n\nBody')).toBe('\nBody');
+  });
+
+  it('leaves content without frontmatter untouched', () => {
+    expect(stripFrontmatter('# Title\n\nBody')).toBe('# Title\n\nBody');
+    expect(stripFrontmatter('')).toBe('');
   });
 });
 

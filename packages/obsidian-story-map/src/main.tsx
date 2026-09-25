@@ -1,5 +1,5 @@
 import { Plugin, TFile, WorkspaceLeaf, type Menu, type MenuItem, type ViewState } from 'obsidian';
-import { VIEW_TYPE_STORY_MAP } from './constants.js';
+import { HOVER_LINK_DISPLAY, HOVER_LINK_SOURCE, VIEW_TYPE_STORY_MAP } from './constants.js';
 import { isStoryMapFile } from './detect.js';
 import { StoryMapView, type StoryMapViewHost } from './view.js';
 
@@ -34,6 +34,10 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
 
   async onload(): Promise<void> {
     this.registerView(VIEW_TYPE_STORY_MAP, (leaf) => new StoryMapView(leaf, this));
+    this.registerHoverLinkSource(HOVER_LINK_SOURCE, {
+      display: HOVER_LINK_DISPLAY,
+      defaultMod: false,
+    });
     this.patchLeafViewState();
     this.loaded = true;
 

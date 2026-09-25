@@ -2,7 +2,7 @@ import { TextFileView, type Menu, type TFile, type WorkspaceLeaf } from 'obsidia
 import { createRoot, type Root } from 'react-dom/client';
 import { extractFencedBlock, parseStoryMapSourceYaml } from '@story-map/story-map-core';
 import { StoryMap } from '@story-map/react-story-map';
-import { STORY_MAP_FENCE, VIEW_TYPE_STORY_MAP } from './constants.js';
+import { HOVER_LINK_SOURCE, STORY_MAP_FENCE, VIEW_TYPE_STORY_MAP } from './constants.js';
 import { resolveObsidianStory } from './resolver.js';
 
 export interface StoryMapViewHost {
@@ -110,12 +110,34 @@ export class StoryMapView extends TextFileView {
       if (token !== this.renderToken) return;
 
       this.root = createRoot(host);
-      this.root.render(<StoryMap story={{ ...story, height: '100%' }} />);
+      this.root.render(
+        <StoryMap
+          story={{ ...story, height: '100%' }}
+          noteLinkClassName="internal-link"
+          onNoteClick={(notePath) => this.openNoteInNewTab(notePath)}
+          onNoteHover={(notePath, targetEl, event) => this.previewNote(notePath, targetEl, event)}
+        />,
+      );
     } catch (error) {
       if (token !== this.renderToken) return;
       host.addClass('story-map-host--error');
       host.setText(formatStoryMapError(error));
     }
+  }
+
+  private openNoteInNewTab(notePath: string): void {
+    void this.app.workspace.openLinkText(notePath, this.file?.path ?? '', true);
+  }
+
+  private previewNote(notePath: string, targetEl: HTMLElement, event: MouseEvent): void {
+    this.app.workspace.trigger('hover-link', {
+      event,
+      source: HOVER_LINK_SOURCE,
+      hoverParent: this.leaf,
+      targetEl,
+      linktext: notePath,
+      sourcePath: this.file?.path ?? '',
+    });
   }
 }
 

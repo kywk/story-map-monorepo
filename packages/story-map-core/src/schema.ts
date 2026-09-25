@@ -16,6 +16,7 @@ const mediaSchema = z.object({
 export const storySlideSchema = z.object({
   id: z.string().optional(),
   note: z.string().optional(),
+  notePath: z.string().optional(),
   title: z.string().optional(),
   text: z.string().optional(),
   location: locationSchema.optional(),
@@ -51,6 +52,7 @@ export const storyMapSourceSchema = storyMapBaseSchema.extend({
   noteFolder: z.string().min(1).optional(),
   order: z.enum(['asc', 'desc']).default('asc'),
   dateField: z.string().min(1).default('date-created'),
+  noteDisplay: z.enum(['basic', 'link', 'full']).default('link'),
   slides: z.array(storySlideSchema).optional(),
 });
 

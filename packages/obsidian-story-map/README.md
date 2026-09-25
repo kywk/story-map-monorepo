@@ -19,12 +19,22 @@ title: Chile Trip
 noteFolder: Travel/Chile/Places
 order: asc
 dateField: date-created
+noteDisplay: link
 map:
   center: [-33.4489, -70.6693]
   zoom: 5
   showPath: true
 ```
 ````
+
+## Note display
+
+`noteDisplay` controls how a resolved note appears in the slide panel:
+
+- `basic` — frontmatter basics only (`title`, `location`, `description`/`summary`, `cover`);
+- `link` — basics plus a title link: hovering shows the Obsidian page preview and clicking opens
+  the note in a new tab (default);
+- `full` — basics plus the note's Markdown body (frontmatter stripped) as slide text.
 
 ## Behavior
 
@@ -36,6 +46,8 @@ map:
   `slides` keep their exact configured order and are never appended to.
 - Notes may reuse Leaflet-compatible `location`, `mapmarker`, `mapzoom`, `title`,
   `description`/`summary`, and `cover`/`image`/`media` frontmatter.
+- In `noteDisplay: link`, the slide title opens the note in a new tab and shows the Obsidian page
+  preview on hover (via a registered `hover-link` source).
 - Invalid YAML or a missing block renders an in-view error instead of breaking the workspace.
 
 The adapter reads the StoryMap configuration from the document's `story-map` fenced block;
