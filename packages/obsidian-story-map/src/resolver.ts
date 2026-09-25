@@ -1,23 +1,74 @@
 import type { App, TFile } from 'obsidian';
 import {
-  coerceLocation,
-  coerceMedia,
+  isPathInFolder,
   mergeResolvedSlide,
   parseWikiLinkRef,
+  slideFromNoteFrontmatter,
+  sortNoteDates,
+  toStoryMapConfig,
+  toTimestamp,
   type StoryMapConfig,
+  type StoryMapSourceConfig,
   type StoryMedia,
   type StorySlide,
 } from '@story-map/story-map-core';
 
 export async function resolveObsidianStory(
   app: App,
-  story: StoryMapConfig,
+  source: StoryMapSourceConfig,
   sourcePath: string,
 ): Promise<StoryMapConfig> {
-  const slides = await Promise.all(
-    story.slides.map(async (slide) => resolveSlide(app, slide, sourcePath)),
+  const explicitSlides = source.slides ?? [];
+  const slides = explicitSlides.length > 0
+    ? await resolveExplicitSlides(app, explicitSlides, sourcePath)
+    : source.noteFolder
+      ? await resolveFolderSlides(app, source.noteFolder, source.dateField, source.order)
+      : [];
+
+  return toStoryMapConfig(source, slides);
+}
+
+async function resolveExplicitSlides(
+  app: App,
+  slides: StorySlide[],
+  sourcePath: string,
+): Promise<StorySlide[]> {
+  return Promise.all(slides.map((slide) => resolveSlide(app, slide, sourcePath)));
+}
+
+async function resolveFolderSlides(
+  app: App,
+  noteFolder: string,
+  dateField: string,
+  order: StoryMapSourceConfig['order'],
+): Promise<StorySlide[]> {
+  const entries = app.vault
+    .getMarkdownFiles()
+    .filter((file) => isPathInFolder(file.path, noteFolder))
+    .map((file) => {
+      const frontmatter = readFrontmatter(app, file);
+      return {
+        path: file.path,
+        date: toTimestamp(frontmatter[dateField]),
+        file,
+        frontmatter,
+      };
+    })
+    .filter((entry) => entry.frontmatter['story-map-note'] === true);
+
+  return Promise.all(
+    sortNoteDates(entries, order).map((entry) => resolveDiscoveredNote(app, entry.file, entry.frontmatter)),
   );
-  return { ...story, slides };
+}
+
+async function resolveDiscoveredNote(
+  app: App,
+  file: TFile,
+  frontmatter: Record<string, unknown>,
+): Promise<StorySlide> {
+  const slide: StorySlide = { ...slideFromNoteFrontmatter(frontmatter, file.basename) };
+  const media = slide.media ? await resolveMedia(app, slide.media, file.path) : undefined;
+  return media ? { ...slide, media } : slide;
 }
 
 async function resolveSlide(app: App, slide: StorySlide, sourcePath: string): Promise<StorySlide> {
@@ -27,21 +78,7 @@ async function resolveSlide(app: App, slide: StorySlide, sourcePath: string): Pr
   if (slide.note) {
     noteFile = resolveWikiFile(app, slide.note, sourcePath);
     if (noteFile) {
-      const frontmatter = app.metadataCache.getFileCache(noteFile)?.frontmatter ?? {};
-      const location = coerceLocation(frontmatter.location, frontmatter.zoom ?? frontmatter.defaultZoom);
-      const media = coerceMedia(frontmatter.cover ?? frontmatter.image ?? frontmatter.media);
-
-      resolved = {
-        title: typeof frontmatter.title === 'string' ? frontmatter.title : noteFile.basename,
-        ...(typeof frontmatter.description === 'string'
-          ? { text: frontmatter.description }
-          : typeof frontmatter.summary === 'string'
-            ? { text: frontmatter.summary }
-            : {}),
-        ...(location ? { location } : {}),
-        ...(media ? { media } : {}),
-        ...(typeof frontmatter.mapmarker === 'string' ? { mapmarker: frontmatter.mapmarker } : {}),
-      };
+      resolved = slideFromNoteFrontmatter(readFrontmatter(app, noteFile), noteFile.basename);
     }
   }
 
@@ -63,4 +100,9 @@ async function resolveMedia(app: App, media: StoryMedia, sourcePath: string): Pr
 
 function resolveWikiFile(app: App, link: string, sourcePath: string): TFile | null {
   return app.metadataCache.getFirstLinkpathDest(parseWikiLinkRef(link), sourcePath);
+}
+
+function readFrontmatter(app: App, file: TFile): Record<string, unknown> {
+  const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
+  return (frontmatter ?? {}) as Record<string, unknown>;
 }

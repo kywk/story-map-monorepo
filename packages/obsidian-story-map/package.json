@@ -1,7 +1,7 @@
 {
   "name": "@story-map/obsidian-story-map",
   "version": "0.1.0",
-  "description": "Obsidian plugin that renders Leaflet StoryMaps from storymap code blocks.",
+  "description": "Obsidian file-backed full-leaf StoryMap view and Vault resolver.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,6 +14,7 @@
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
     "typecheck": "tsc -b",
+    "test": "vitest run",
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {

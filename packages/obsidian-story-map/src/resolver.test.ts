@@ -1,0 +1,186 @@
+import { describe, expect, it } from 'vitest';
+import type { App } from 'obsidian';
+import { parseStoryMapSourceObject } from '@story-map/story-map-core';
+import { resolveObsidianStory } from './resolver.js';
+
+interface FakeFile {
+  path: string;
+  frontmatter: Record<string, unknown>;
+}
+
+function basename(filePath: string): string {
+  const name = filePath.split('/').pop() ?? filePath;
+  return name.replace(/\.md$/i, '');
+}
+
+function normalizeLink(value: string): string {
+  return value.replace(/\\/g, '/').replace(/\.md$/i, '').toLowerCase();
+}
+
+function resolveRelative(dir: string, relative: string): string {
+  const segments = `${dir}/${relative}`.split('/');
+  const stack: string[] = [];
+  for (const segment of segments) {
+    if (!segment || segment === '.') continue;
+    if (segment === '..') stack.pop();
+    else stack.push(segment);
+  }
+  return stack.join('/');
+}
+
+function makeApp(files: FakeFile[]): App {
+  const all = files.map((file) => ({ ...file, basename: basename(file.path) }));
+
+  const app = {
+    metadataCache: {
+      getFileCache: (file: { frontmatter?: Record<string, unknown> }) => ({
+        frontmatter: file.frontmatter ?? {},
+      }),
+      getFirstLinkpathDest: (link: string, sourcePath: string) => {
+        const normalized = link.replace(/\\/g, '/');
+        if (normalized.startsWith('./') || normalized.startsWith('../')) {
+          const dir = sourcePath.includes('/')
+            ? sourcePath.slice(0, sourcePath.lastIndexOf('/'))
+            : '';
+          const target = normalizeLink(resolveRelative(dir, normalized));
+          return all.find((file) => normalizeLink(file.path) === target) ?? null;
+        }
+        const ref = normalizeLink(normalized);
+        const exact = all.find((file) => normalizeLink(file.path) === ref);
+        if (exact) return exact;
+        const base = ref.split('/').pop();
+        return all.find((file) => file.basename.toLowerCase() === base) ?? null;
+      },
+    },
+    vault: {
+      getMarkdownFiles: () => all.filter((file) => file.path.toLowerCase().endsWith('.md')),
+      getResourcePath: (file: { path: string }) => `app://vault/${file.path}`,
+    },
+  };
+
+  return app as unknown as App;
+}
+
+function note(path: string, frontmatter: Record<string, unknown>): FakeFile {
+  return { path, frontmatter };
+}
+
+describe('resolveObsidianStory with explicit slides', () => {
+  const files: FakeFile[] = [
+    note('Places/Santiago.md', {
+      title: 'Santiago',
+      location: [-33.4489, -70.6693],
+      description: 'The starting point.',
+      cover: './santiago.jpg',
+      mapmarker: 'city',
+    }),
+    { path: 'Places/santiago.jpg', frontmatter: {} },
+    note('Places/Valparaiso.md', { title: 'Valparaiso' }),
+  ];
+
+  it('resolves a WikiLink alias and inherits frontmatter', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({
+      slides: [{ note: '[[Santiago|First stop]]' }],
+    });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    const slide = story.slides[0];
+
+    expect(slide?.title).toBe('Santiago');
+    expect(slide?.text).toBe('The starting point.');
+    expect(slide?.location).toEqual({ lat: -33.4489, lng: -70.6693 });
+    expect(slide?.mapmarker).toBe('city');
+    expect(slide?.media).toEqual({ type: 'image', src: 'app://vault/Places/santiago.jpg' });
+  });
+
+  it('resolves heading links', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({
+      slides: [{ note: '[[Santiago#Food]]' }],
+    });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    expect(story.slides[0]?.title).toBe('Santiago');
+  });
+
+  it('lets explicit slide properties override note frontmatter', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({
+      slides: [{ note: '[[Santiago]]', title: 'Explicit', location: [1, 2] }],
+    });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    expect(story.slides[0]?.title).toBe('Explicit');
+    expect(story.slides[0]?.location).toEqual({ lat: 1, lng: 2 });
+  });
+});
+
+describe('resolveObsidianStory folder discovery', () => {
+  const files: FakeFile[] = [
+    note('Places/2026-01 Santiago.md', {
+      'story-map-note': true,
+      title: 'Santiago',
+      'date-created': '2026-01-15',
+      location: [-33.4489, -70.6693],
+    }),
+    note('Places/Nested/2026-02 Atacama.md', {
+      'story-map-note': true,
+      title: 'Atacama',
+      'date-created': '2026-02-20',
+    }),
+    note('Places/No Flag.md', { title: 'Ignored' }),
+    note('Places/Undated.md', { 'story-map-note': true, title: 'Undated' }),
+    note('Elsewhere/2020 Old.md', {
+      'story-map-note': true,
+      'date-created': '2020-01-01',
+    }),
+  ];
+
+  it('recursively discovers flagged notes and ignores unflagged or external ones', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({ noteFolder: 'Places' });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    expect(story.slides.map((slide) => slide.title)).toEqual([
+      'Santiago',
+      'Atacama',
+      'Undated',
+    ]);
+  });
+
+  it('sorts descending while keeping undated notes last', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({ noteFolder: 'Places', order: 'desc' });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    expect(story.slides.map((slide) => slide.title)).toEqual([
+      'Atacama',
+      'Santiago',
+      'Undated',
+    ]);
+  });
+
+  it('honors a custom dateField', async () => {
+    const app = makeApp([
+      note('Places/A.md', { 'story-map-note': true, title: 'A', visited: '2026-03-01' }),
+      note('Places/B.md', { 'story-map-note': true, title: 'B', visited: '2026-01-01' }),
+    ]);
+    const source = parseStoryMapSourceObject({ noteFolder: 'Places', dateField: 'visited' });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    expect(story.slides.map((slide) => slide.title)).toEqual(['B', 'A']);
+  });
+
+  it('does not append folder notes when explicit slides exist', async () => {
+    const app = makeApp(files);
+    const source = parseStoryMapSourceObject({
+      noteFolder: 'Places',
+      slides: [{ title: 'Only explicit' }],
+    });
+
+    const story = await resolveObsidianStory(app, source, 'Story.md');
+    expect(story.slides).toHaveLength(1);
+    expect(story.slides[0]?.title).toBe('Only explicit');
+  });
+});
