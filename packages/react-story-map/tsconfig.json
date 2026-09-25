@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "composite": true
   },
+  "references": [{ "path": "../story-map-core" }],
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
 }

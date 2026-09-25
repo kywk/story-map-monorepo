@@ -4,5 +4,6 @@
     "noEmit": true,
     "types": ["node"]
   },
+  "references": [{ "path": "../story-map-core" }, { "path": "../react-story-map" }],
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

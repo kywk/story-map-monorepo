@@ -18,9 +18,12 @@ A minimal monorepo for a Leaflet-based StoryMap renderer that can be reused by:
 ```bash
 corepack enable
 pnpm install
-pnpm build
+pnpm typecheck
 pnpm test
+pnpm build
 ```
+
+`pnpm typecheck` uses TypeScript project references (`tsc -b`), so it builds `story-map-core` for dependents instead of relying on a stale `dist`.
 
 ## Story syntax
 

@@ -5,6 +5,7 @@
     "outDir": "dist",
     "types": ["node"]
   },
+  "references": [{ "path": "../story-map-core" }],
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": ["src/**/*.test.ts"]
 }
