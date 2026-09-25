@@ -22,9 +22,10 @@ export async function resolveObsidianStory(
 
 async function resolveSlide(app: App, slide: StorySlide, sourcePath: string): Promise<StorySlide> {
   let resolved: Partial<StorySlide> = {};
+  let noteFile: TFile | null = null;
 
   if (slide.note) {
-    const noteFile = resolveWikiFile(app, slide.note, sourcePath);
+    noteFile = resolveWikiFile(app, slide.note, sourcePath);
     if (noteFile) {
       const frontmatter = app.metadataCache.getFileCache(noteFile)?.frontmatter ?? {};
       const location = coerceLocation(frontmatter.location, frontmatter.zoom ?? frontmatter.defaultZoom);
@@ -45,7 +46,8 @@ async function resolveSlide(app: App, slide: StorySlide, sourcePath: string): Pr
   }
 
   const merged = mergeResolvedSlide(slide, resolved);
-  const media = merged.media ? await resolveMedia(app, merged.media, sourcePath) : undefined;
+  const mediaSource = slide.media ? sourcePath : (noteFile?.path ?? sourcePath);
+  const media = merged.media ? await resolveMedia(app, merged.media, mediaSource) : undefined;
   return { ...merged, ...(media ? { media } : {}) };
 }
 
