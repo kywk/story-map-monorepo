@@ -65,7 +65,8 @@ Complete:
 
 - file-backed `TextFileView` registered as a dedicated full-leaf view;
 - `story-map: true` document detection and `story-map` fenced-block extraction;
-- `Open as Story Map` / `Open as Markdown` commands and file-menu action;
+- `Open as Story Map` / `Open as Markdown` commands, file-menu action, and StoryMap pane menu action;
+- default-open of detected StoryMap documents in the StoryMap view, with per-file `Open as Markdown` opt-out;
 - `note` WikiLink resolver;
 - recursive `noteFolder` discovery filtered by `story-map-note: true`;
 - `dateField` + `order` chronological sorting for folder-generated slides;

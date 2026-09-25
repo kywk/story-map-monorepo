@@ -42,7 +42,7 @@ Do not introduce unless explicitly requested:
 - premature abstraction for multiple map engines;
 - multiple `noteFolder` sources;
 - generic `sortBy`, grouping, filtering, or query syntax;
-- automatic full Markdown-open interception through `WorkspaceLeaf` monkey patches.
+- automatic full Markdown-open interception through `WorkspaceLeaf` monkey patches (a scoped `setViewState` wrapper may still open detected `story-map: true` documents in the StoryMap view by default).
 
 A future map adapter can be added later. The MVP renderer directly owns Leaflet lifecycle inside `react-story-map`.
 
@@ -71,7 +71,8 @@ A future map adapter can be added later. The MVP renderer directly owns Leaflet 
 - resolves Vault-specific content and `noteFolder`;
 - must pass a standard resolved `StoryMapConfig` to the renderer;
 - must support Markdown <-> StoryMap view switching;
-- must not monkey-patch workspace open behavior in v1.
+- opens detected StoryMap documents in the StoryMap view by default via a scoped `setViewState` wrapper;
+- must not intercept unrelated Markdown opens.
 
 ### `packages/remark-story-map`
 

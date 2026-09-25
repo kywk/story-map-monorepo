@@ -164,6 +164,7 @@ Owns:
 - detecting `story-map: true` StoryMap documents;
 - extracting and parsing the document's `story-map` fenced configuration;
 - switching between StoryMap view and Markdown view;
+- opening detected StoryMap documents in the StoryMap view by default;
 - recursively scanning configured `noteFolder`;
 - including only folder-discovered Markdown files with `story-map-note: true`;
 - reading the configured `dateField` from note frontmatter;
@@ -347,7 +348,9 @@ Required behavior:
 - StoryMap uses the full Workspace leaf content area;
 - the same Markdown file can switch between StoryMap and Markdown views;
 - commands/menu actions include `Open as Story Map` and `Open as Markdown`;
-- creating a new StoryMap file may open it directly as StoryMap view;
+- opening a detected `story-map: true` document shows it in the StoryMap view by default;
+- `Open as Markdown` opts that file out until `Open as Story Map` is invoked again;
+- `Open as Story Map` also appears in the StoryMap view's pane menu (`onPaneMenu`);
 - tab title follows the Markdown filename;
 - split panes and pop-out windows remain supported by normal Obsidian workspace behavior;
 - StoryMap height is forced to `100%` in the Obsidian full-leaf host;
@@ -356,7 +359,7 @@ Required behavior:
 - pane/container resize causes Leaflet size invalidation;
 - invalid frontmatter or StoryMap YAML produces an in-view error rather than breaking the workspace.
 
-Automatic interception of every Markdown open operation is deferred.
+Default-open behavior is limited to detected `story-map: true` documents and uses a scoped `WorkspaceLeaf.setViewState` wrapper (the same approach as the Kanban plugin) so a file is rewritten to the StoryMap view only when its frontmatter marks it as a StoryMap. Blanket interception of unrelated Markdown files remains out of scope.
 
 ## 11. React API
 
@@ -405,7 +408,7 @@ The MVP is complete when all are true:
 Explicitly defer:
 
 - visual authoring/editor UI;
-- automatic monkey-patching of Markdown file opening;
+- blanket `WorkspaceLeaf` interception of unrelated Markdown opens (a scoped `setViewState` wrapper is used only for detected `story-map: true` documents);
 - multiple `noteFolder` sources;
 - custom `sortBy`, secondary user-defined sort, grouping, filtering, or query syntax;
 - scrollama/scrollytelling mode;
