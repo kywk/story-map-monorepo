@@ -3,10 +3,19 @@ import {
   StoryMapParseError,
   coerceLocation,
   coerceMedia,
+  compareNoteDates,
+  extractFencedBlock,
+  isPathInFolder,
   mergeResolvedSlide,
   parseStoryMapObject,
+  parseStoryMapSourceObject,
+  parseStoryMapSourceYaml,
   parseStoryMapYaml,
   parseWikiLinkRef,
+  slideFromNoteFrontmatter,
+  sortNoteDates,
+  toStoryMapConfig,
+  toTimestamp,
   validCoordinates,
 } from './index.js';
 
@@ -178,5 +187,191 @@ describe('validCoordinates', () => {
     expect(validCoordinates(91, 0)).toBe(false);
     expect(validCoordinates(0, 181)).toBe(false);
     expect(validCoordinates(Number.NaN, 0)).toBe(false);
+  });
+});
+
+describe('parseStoryMapSourceYaml', () => {
+  it('applies source defaults for order and dateField', () => {
+    const source = parseStoryMapSourceYaml(`
+      title: Chile
+      noteFolder: Travel/Chile/Places
+    `);
+
+    expect(source.order).toBe('asc');
+    expect(source.dateField).toBe('date-created');
+    expect(source.noteFolder).toBe('Travel/Chile/Places');
+    expect(source.slides).toBeUndefined();
+  });
+
+  it('accepts asc and desc orders', () => {
+    expect(parseStoryMapSourceYaml('order: asc').order).toBe('asc');
+    expect(parseStoryMapSourceYaml('order: desc').order).toBe('desc');
+  });
+
+  it('keeps explicit slides optional but preserves configured values', () => {
+    const source = parseStoryMapSourceYaml(`
+      noteFolder: Places
+      slides:
+        - note: "[[Santiago]]"
+    `);
+
+    expect(source.slides).toHaveLength(1);
+    expect(source.slides?.[0]?.note).toBe('[[Santiago]]');
+  });
+
+  it('rejects invalid order values', () => {
+    expect(() => parseStoryMapSourceYaml('order: sideways')).toThrow();
+  });
+
+  it('accepts an empty slides array', () => {
+    const source = parseStoryMapSourceYaml('slides: []');
+    expect(source.slides).toEqual([]);
+  });
+});
+
+describe('toStoryMapConfig', () => {
+  it('drops source-only keys and keeps a canonical config', () => {
+    const source = parseStoryMapSourceObject({
+      title: 'Chile',
+      noteFolder: 'Places',
+      slides: [],
+    });
+
+    const config = toStoryMapConfig(source, [{ title: 'Santiago' }]);
+
+    expect(config).toEqual({
+      schema: 'storymap/v1',
+      title: 'Chile',
+      height: '520px',
+      map: {
+        zoom: 6,
+        tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '© OpenStreetMap contributors',
+        showPath: true,
+      },
+      slides: [{ title: 'Santiago' }],
+    });
+    expect('noteFolder' in config).toBe(false);
+  });
+});
+
+describe('extractFencedBlock', () => {
+  it('extracts a story-map fenced block case-insensitively', () => {
+    const markdown = [
+      '---',
+      'story-map: true',
+      '---',
+      '',
+      '```story-map',
+      'title: Demo',
+      '```',
+      '',
+      'After',
+    ].join('\n');
+
+    expect(extractFencedBlock(markdown, 'story-map')).toBe('title: Demo');
+  });
+
+  it('ignores other languages and returns null when absent', () => {
+    expect(extractFencedBlock('```storymap\ntitle: Demo\n```', 'story-map')).toBeNull();
+    expect(extractFencedBlock('no fences here', 'story-map')).toBeNull();
+  });
+
+  it('supports longer fences and tildes', () => {
+    expect(extractFencedBlock('~~~story-map\ntitle: Demo\n~~~', 'story-map')).toBe('title: Demo');
+    expect(extractFencedBlock('````story-map\ntitle: Demo\n````', 'story-map')).toBe('title: Demo');
+  });
+});
+
+describe('toTimestamp', () => {
+  it('parses dates, ISO strings, and epoch numbers', () => {
+    expect(toTimestamp(new Date('2026-01-15T00:00:00.000Z'))).toBe(Date.UTC(2026, 0, 15));
+    expect(toTimestamp('2026-01-15')).toBe(Date.UTC(2026, 0, 15));
+    expect(toTimestamp(0)).toBe(0);
+  });
+
+  it('returns null for missing or unparseable values', () => {
+    expect(toTimestamp(undefined)).toBeNull();
+    expect(toTimestamp('')).toBeNull();
+    expect(toTimestamp('not a date')).toBeNull();
+    expect(toTimestamp(Number.NaN)).toBeNull();
+  });
+});
+
+describe('sortNoteDates', () => {
+  const older = { path: 'Places/a.md', date: Date.UTC(2026, 0, 1) };
+  const newer = { path: 'Places/b.md', date: Date.UTC(2026, 5, 1) };
+  const missing = { path: 'Places/c.md', date: null };
+  const alsoMissing = { path: 'Places/d.md', date: null };
+
+  it('sorts ascending with valid dates first and path ties ascending', () => {
+    const sorted = sortNoteDates([missing, newer, older, alsoMissing], 'asc');
+    expect(sorted.map((note) => note.path)).toEqual([
+      'Places/a.md',
+      'Places/b.md',
+      'Places/c.md',
+      'Places/d.md',
+    ]);
+  });
+
+  it('sorts descending while keeping invalid dates last', () => {
+    const sorted = sortNoteDates([older, missing, newer], 'desc');
+    expect(sorted.map((note) => note.path)).toEqual([
+      'Places/b.md',
+      'Places/a.md',
+      'Places/c.md',
+    ]);
+  });
+
+  it('compares a missing date after a valid date regardless of order', () => {
+    expect(compareNoteDates(missing, older, 'desc')).toBe(1);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [newer, older];
+    sortNoteDates(input, 'asc');
+    expect(input).toEqual([newer, older]);
+  });
+});
+
+describe('slideFromNoteFrontmatter', () => {
+  it('maps Leaflet-compatible frontmatter into slide values', () => {
+    const slide = slideFromNoteFrontmatter(
+      {
+        title: 'Santiago',
+        location: [-33.4489, -70.6693],
+        mapmarker: 'city',
+        description: 'The start.',
+        cover: './santiago.jpg',
+      },
+      'fallback',
+    );
+
+    expect(slide).toEqual({
+      title: 'Santiago',
+      text: 'The start.',
+      location: { lat: -33.4489, lng: -70.6693 },
+      media: { type: 'image', src: './santiago.jpg' },
+      mapmarker: 'city',
+    });
+  });
+
+  it('falls back to summary and the supplied title', () => {
+    const slide = slideFromNoteFrontmatter({ summary: 'Summary text' }, 'Note Name');
+    expect(slide.title).toBe('Note Name');
+    expect(slide.text).toBe('Summary text');
+  });
+});
+
+describe('isPathInFolder', () => {
+  it('matches nested files under a vault-relative folder', () => {
+    expect(isPathInFolder('Places/Santiago.md', 'Places')).toBe(true);
+    expect(isPathInFolder('Places/Chile/Santiago.md', 'Places')).toBe(true);
+    expect(isPathInFolder('Places2/Santiago.md', 'Places')).toBe(false);
+    expect(isPathInFolder('Places/Santiago.md', '/Places/')).toBe(true);
+  });
+
+  it('matches every file for a root folder', () => {
+    expect(isPathInFolder('Anywhere/Note.md', '')).toBe(true);
   });
 });

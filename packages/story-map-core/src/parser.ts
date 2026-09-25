@@ -1,7 +1,7 @@
 import { load } from 'js-yaml';
-import { storyMapSchema } from './schema.js';
+import { storyMapSchema, storyMapSourceSchema } from './schema.js';
 import { coerceLocation, coerceMedia, validCoordinates } from './helpers.js';
-import type { StoryMapConfig } from './types.js';
+import type { StoryMapConfig, StoryMapSourceConfig, StorySlide } from './types.js';
 
 export class StoryMapParseError extends Error {
   constructor(message: string) {
@@ -73,4 +73,56 @@ export function parseStoryMapObject(value: unknown): StoryMapConfig {
 
 export function parseStoryMapYaml(source: string): StoryMapConfig {
   return parseStoryMapObject(load(source));
+}
+
+export function parseStoryMapSourceObject(value: unknown): StoryMapSourceConfig {
+  return storyMapSourceSchema.parse(normalizeStoryMapInput(value)) as StoryMapSourceConfig;
+}
+
+export function parseStoryMapSourceYaml(source: string): StoryMapSourceConfig {
+  return parseStoryMapSourceObject(load(source));
+}
+
+export function toStoryMapConfig(source: StoryMapSourceConfig, slides: StorySlide[]): StoryMapConfig {
+  const config: StoryMapConfig = {
+    schema: source.schema,
+    height: source.height,
+    map: source.map,
+    slides,
+  };
+  if (source.id !== undefined) config.id = source.id;
+  if (source.title !== undefined) config.title = source.title;
+  return config;
+}
+
+export function extractFencedBlock(markdown: string, language: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  const openingFence = new RegExp(
+    '^\\s*[`~]{3,}\\s*' + escapeRegExp(language) + '\\s*$',
+    'i',
+  );
+  const closingFence = /^\s*[`~]{3,}\s*$/;
+  let collecting = false;
+  const collected: string[] = [];
+
+  for (const line of lines) {
+    if (!collecting) {
+      if (openingFence.test(line)) {
+        collecting = true;
+      }
+      continue;
+    }
+
+    if (closingFence.test(line)) {
+      break;
+    }
+
+    collected.push(line);
+  }
+
+  return collecting ? collected.join('\n') : null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

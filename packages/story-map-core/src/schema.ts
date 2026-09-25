@@ -23,7 +23,7 @@ export const storySlideSchema = z.object({
   mapmarker: z.string().optional(),
 });
 
-export const storyMapSchema = z.object({
+const storyMapBaseSchema = z.object({
   schema: z.literal('storymap/v1').default('storymap/v1'),
   id: z.string().optional(),
   title: z.string().optional(),
@@ -45,5 +45,15 @@ export const storyMapSchema = z.object({
     attribution: '© OpenStreetMap contributors',
     showPath: true,
   }),
+});
+
+export const storyMapSourceSchema = storyMapBaseSchema.extend({
+  noteFolder: z.string().min(1).optional(),
+  order: z.enum(['asc', 'desc']).default('asc'),
+  dateField: z.string().min(1).default('date-created'),
+  slides: z.array(storySlideSchema).optional(),
+});
+
+export const storyMapSchema = storyMapBaseSchema.extend({
   slides: z.array(storySlideSchema).min(1),
 });
