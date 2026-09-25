@@ -2,6 +2,7 @@ import type { StoryLocation, StoryMedia, StorySlide } from './types.js';
 
 export function parseWikiLinkRef(value: string): string {
   let ref = value.trim();
+  if (ref.startsWith('!')) ref = ref.slice(1).trim();
   if (ref.startsWith('[[') && ref.endsWith(']]')) {
     ref = ref.slice(2, -2);
   }
@@ -80,6 +81,6 @@ export function mergeResolvedSlide(base: StorySlide, resolved: Partial<StorySlid
   return merged;
 }
 
-function validCoordinates(lat: number, lng: number) {
+export function validCoordinates(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
