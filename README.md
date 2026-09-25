@@ -54,4 +54,4 @@ Obsidian and Remark adapters may resolve `note`, Vault frontmatter, WikiLinks, a
 
 `react-story-map` must never import Obsidian or Docusaurus APIs. Platform-specific information is resolved before render time.
 
-See `SPEC.md` and `docs/implementation-plan.md`.
+See `SPEC.md` and `docs/implementation-plan.md`. Release steps live in `RELEASING.md`.
