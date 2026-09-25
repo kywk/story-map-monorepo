@@ -10,7 +10,7 @@
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "clean": "pnpm -r --if-present clean",
+    "clean": "pnpm -r run --if-present clean",
     "dev:obsidian": "pnpm --filter @story-map/story-map-core build && pnpm --filter @story-map/react-story-map build && pnpm --filter @story-map/obsidian-story-map dev"
   },
   "devDependencies": {
