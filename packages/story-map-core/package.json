@@ -1,6 +1,13 @@
 {
   "name": "@story-map/story-map-core",
   "version": "0.1.0",
+  "description": "Framework-agnostic schema, parser, and helpers for StoryMap v1.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kywk/story-map-monorepo.git",
+    "directory": "packages/story-map-core"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

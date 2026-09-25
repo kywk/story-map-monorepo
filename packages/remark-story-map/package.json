@@ -1,6 +1,13 @@
 {
   "name": "@story-map/remark-story-map",
   "version": "0.1.0",
+  "description": "Remark transformer and browser client for publishing StoryMap blocks.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kywk/story-map-monorepo.git",
+    "directory": "packages/remark-story-map"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -1,6 +1,13 @@
 {
   "name": "@story-map/obsidian-story-map",
   "version": "0.1.0",
+  "description": "Obsidian plugin that renders Leaflet StoryMaps from storymap code blocks.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kywk/story-map-monorepo.git",
+    "directory": "packages/obsidian-story-map"
+  },
   "private": true,
   "main": "dist/main.js",
   "scripts": {

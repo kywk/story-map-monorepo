@@ -1,6 +1,13 @@
 {
   "name": "@story-map/react-story-map",
   "version": "0.1.0",
+  "description": "React and Leaflet renderer for the StoryMap v1 config format.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kywk/story-map-monorepo.git",
+    "directory": "packages/react-story-map"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -31,3 +31,4 @@ await esbuild.build({
 });
 
 await cp('manifest.json', 'dist/manifest.json');
+await cp('versions.json', 'dist/versions.json');
