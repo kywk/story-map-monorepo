@@ -4,13 +4,29 @@
 
 Deliver the first usable StoryMap MVP described in `SPEC.md` with the least architectural surface necessary.
 
+The current priority is the Obsidian file-backed StoryMap view plus deterministic folder-based note discovery.
+
 ## Source of truth
 
 1. `SPEC.md` — product and architecture contract.
 2. `docs/implementation-plan.md` — work order and acceptance checks.
-3. Existing package APIs in this repository.
+3. `docs/handoff.md` — historical Vault verification notes (the current contract is `SPEC.md`).
+4. Existing package APIs in this repository.
 
 If a task conflicts with `SPEC.md`, update the implementation to match the spec rather than inventing a new architecture.
+
+## Current source conventions
+
+- StoryMap document frontmatter: `story-map: true`.
+- StoryMap note discovery frontmatter: `story-map-note: true`.
+- StoryMap fenced language: `story-map`.
+- StoryMap configuration keys use camelCase.
+- `noteFolder` supports one Vault-relative folder in v1 and includes subfolders recursively.
+- Folder-generated slide order is controlled only by:
+  - `order: asc | desc`, default `asc`;
+  - `dateField`, default `date-created`.
+- Explicit `slides` preserve exact author order and are never implicitly appended to or reordered by folder discovery.
+- Reuse Leaflet-compatible note metadata such as `location`, `mapmarker`, and `mapzoom`.
 
 ## Non-goals
 
@@ -23,7 +39,10 @@ Do not introduce unless explicitly requested:
 - visual editors;
 - scroll-driven storytelling;
 - a generic plugin framework;
-- premature abstraction for multiple map engines.
+- premature abstraction for multiple map engines;
+- multiple `noteFolder` sources;
+- generic `sortBy`, grouping, filtering, or query syntax;
+- automatic full Markdown-open interception through `WorkspaceLeaf` monkey patches.
 
 A future map adapter can be added later. The MVP renderer directly owns Leaflet lifecycle inside `react-story-map`.
 
@@ -33,25 +52,33 @@ A future map adapter can be added later. The MVP renderer directly owns Leaflet 
 
 - framework agnostic;
 - no DOM, React, Leaflet, Obsidian, Docusaurus, or Node filesystem dependencies;
-- owns schema and parsing behavior.
+- owns schema, parsing behavior, source configuration defaults, and small shared normalization helpers;
+- does not scan folders or read note files.
 
 ### `packages/react-story-map`
 
 - owns UI and Leaflet rendering;
 - must remain SSR-import-safe: do not import Leaflet as a runtime top-level dependency; dynamically import it inside client effects;
-- must not import Obsidian or Node filesystem APIs.
+- owns generic resize handling such as Leaflet `invalidateSize()`;
+- must not import Obsidian or Node filesystem APIs;
+- must not know about `noteFolder`, Vault scanning, or frontmatter access.
 
 ### `packages/obsidian-story-map`
 
 - may import Obsidian APIs;
-- resolves Vault-specific content;
-- must pass a standard `StoryMapConfig` to the renderer.
+- implements a file-backed `TextFileView`;
+- parses the StoryMap document's `story-map` fenced block;
+- resolves Vault-specific content and `noteFolder`;
+- must pass a standard resolved `StoryMapConfig` to the renderer;
+- must support Markdown <-> StoryMap view switching;
+- must not monkey-patch workspace open behavior in v1.
 
 ### `packages/remark-story-map`
 
 - build-time entry may use Node filesystem APIs;
 - browser client entry must not use Node APIs;
-- Remark transforms content but never initializes Leaflet during build.
+- Remark transforms content but never initializes Leaflet during build;
+- folder discovery and sorting must match Obsidian semantics.
 
 ## Collaboration rules
 
@@ -61,8 +88,9 @@ When multiple agents work in parallel:
 - avoid editing root config unless assigned as integrator;
 - do not rename shared public types without coordinating consumers;
 - prefer small commits grouped by package responsibility;
-- add tests for parser/normalization logic before adding more features;
-- integration fixes belong to the integrator after package work is complete.
+- add tests for parser/normalization/order logic before adding more features;
+- integration fixes belong to the integrator after package work is complete;
+- do not expand sorting beyond `order` + `dateField` in this milestone.
 
 ## Definition of done
 
@@ -78,8 +106,13 @@ pnpm build
 Then manually smoke-test:
 
 1. standalone React rendering;
-2. Obsidian Reading View lifecycle;
-3. Remark transform output;
-4. Docusaurus client hydration/SSR boundary.
+2. Obsidian full-leaf StoryMap view lifecycle;
+3. Markdown <-> StoryMap view switching;
+4. recursive `noteFolder` discovery;
+5. `dateField` ordering in both directions;
+6. explicit slide ordering unaffected by folder settings;
+7. split-pane resize/Leaflet invalidation;
+8. Remark transform output;
+9. Docusaurus client hydration/SSR boundary.
 
 Do not mark deferred features as implemented unless they are tested end to end.

@@ -63,18 +63,22 @@ Acceptance:
 
 Complete:
 
-- code-block processor;
+- file-backed `TextFileView` registered as a dedicated full-leaf view;
+- `story-map: true` document detection and `story-map` fenced-block extraction;
+- `Open as Story Map` / `Open as Markdown` commands and file-menu action;
 - `note` WikiLink resolver;
-- frontmatter inheritance;
-- local media URL conversion;
-- React root cleanup with `MarkdownRenderChild`;
-- Obsidian CSS bundle.
+- recursive `noteFolder` discovery filtered by `story-map-note: true`;
+- `dateField` + `order` chronological sorting for folder-generated slides;
+- frontmatter inheritance and local media URL conversion;
+- React root cleanup on view unload/switch;
+- Obsidian CSS bundle and full-height host.
 
 Acceptance:
 
 - explicit slide properties override note frontmatter;
 - note frontmatter can provide title/location/description/cover;
-- switching notes does not leak React roots or Leaflet maps.
+- explicit slides are never reordered or appended to by `noteFolder`;
+- switching between StoryMap and Markdown does not leak React roots or Leaflet maps.
 
 ### Track D — `remark-story-map`
 
