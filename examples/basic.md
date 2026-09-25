@@ -1,7 +1,7 @@
 # Basic StoryMap
 
 ````markdown
-```storymap
+```story-map
 title: Taiwan sample
 height: 520px
 map:

@@ -10,7 +10,7 @@ A minimal monorepo for a Leaflet-based StoryMap renderer that can be reused by:
 
 - `@story-map/story-map-core` — framework-agnostic schema, parser, and shared helpers
 - `@story-map/react-story-map` — React + Leaflet StoryMap renderer
-- `@story-map/obsidian-story-map` — Obsidian `storymap` code-block processor and Vault resolver
+- `@story-map/obsidian-story-map` — Obsidian file-backed full-leaf StoryMap view and Vault resolver
 - `@story-map/remark-story-map` — Remark transformer plus browser hydrator for Docusaurus
 
 ## Quick start
@@ -27,8 +27,15 @@ pnpm build
 
 ## Story syntax
 
+A StoryMap document is a normal Markdown file with `story-map: true` frontmatter and one
+fenced `story-map` configuration block:
+
 ````markdown
-```storymap
+---
+story-map: true
+---
+
+```story-map
 schema: storymap/v1
 title: Chile Trip
 height: 560px
@@ -36,17 +43,15 @@ map:
   center: [-33.4489, -70.6693]
   zoom: 6
   showPath: true
-slides:
-  - title: Santiago
-    location: [-33.4489, -70.6693]
-    zoom: 12
-    text: |
-      First stop in **Santiago**.
-    media: ./assets/santiago.jpg
-
-  - note: "[[San Pedro de Atacama]]"
+noteFolder: Travel/Chile/Places
+order: asc
+dateField: date-created
 ```
 ````
+
+`noteFolder` recursively discovers Markdown notes with `story-map-note: true`, ordered
+by `dateField` using `order: asc | desc`. When explicit `slides` are present, they keep
+their exact order and `noteFolder` is ignored.
 
 Obsidian and Remark adapters may resolve `note`, Vault frontmatter, WikiLinks, and local assets before passing the final `StoryMapConfig` to `react-story-map`.
 
