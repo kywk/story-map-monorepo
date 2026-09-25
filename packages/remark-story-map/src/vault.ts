@@ -58,7 +58,9 @@ export class VaultIndex {
     }
 
     const merged = mergeResolvedSlide(slide, resolved);
-    const media = merged.media ? this.resolveMedia(merged.media, notePath) : undefined;
+    const media = merged.media
+      ? this.resolveMedia(merged.media, slide.media ? undefined : notePath)
+      : undefined;
     return { ...merged, ...(media ? { media } : {}) };
   }
 
