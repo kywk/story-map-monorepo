@@ -26,6 +26,15 @@
   z-index: 0;
 }
 
+.story-map__empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 200px;
+  color: var(--story-map-muted);
+  font-size: 0.9rem;
+}
+
 .story-map__panel {
   position: absolute;
   z-index: 500;

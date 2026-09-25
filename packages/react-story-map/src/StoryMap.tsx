@@ -20,7 +20,7 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
   const activeIndexRef = useRef(0);
   const [rawActiveIndex, setActiveIndex] = useState(() => clamp(initialSlide, 0, story.slides.length - 1));
   const activeIndex = clamp(rawActiveIndex, 0, story.slides.length - 1);
-  const activeSlide = story.slides[activeIndex]!;
+  const activeSlide = story.slides[activeIndex];
   activeIndexRef.current = activeIndex;
 
   const locatedSlides = useMemo(
@@ -91,7 +91,7 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
   }, [story, locatedSlides]);
 
   useEffect(() => {
-    const location = activeSlide.location;
+    const location = activeSlide?.location;
     if (location && mapRef.current) {
       mapRef.current.flyTo(
         [location.lat, location.lng],
@@ -100,15 +100,38 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
       );
     }
     updateMarkerStyles(story, activeIndex, markersRef.current);
-    onSlideChange?.(activeIndex, activeSlide);
+    if (activeSlide) onSlideChange?.(activeIndex, activeSlide);
   }, [activeIndex, activeSlide, onSlideChange, story]);
 
   useEffect(() => {
     setActiveIndex((current) => clamp(current, 0, story.slides.length - 1));
   }, [story.slides.length]);
 
+  useEffect(() => {
+    const element = mapElementRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   function goTo(next: number) {
     setActiveIndex(clamp(next, 0, story.slides.length - 1));
+  }
+
+  if (!activeSlide) {
+    return (
+      <section
+        className={['story-map', className].filter(Boolean).join(' ')}
+        style={{ height: story.height }}
+        aria-label={story.title ?? 'Story map'}
+      >
+        <div className="story-map__empty">This StoryMap has no slides.</div>
+      </section>
+    );
   }
 
   return (
