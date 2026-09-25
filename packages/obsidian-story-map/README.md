@@ -28,8 +28,10 @@ map:
 
 ## Behavior
 
-- `Open as Story Map` command and file-menu action open a detected document in the full-leaf view.
-- `Open as Markdown` switches the same file back to the normal Markdown view without changing its source.
+- A detected document opens in the full-leaf StoryMap view by default.
+- `Open as Markdown` (command, file menu, and the StoryMap view's pane menu) switches the same
+  file back to the normal Markdown view without changing its source; `Open as Story Map`
+  returns it to the StoryMap view.
 - `noteFolder` recursively discovers Markdown notes with `story-map-note: true`; explicit
   `slides` keep their exact configured order and are never appended to.
 - Notes may reuse Leaflet-compatible `location`, `mapmarker`, `mapzoom`, `title`,

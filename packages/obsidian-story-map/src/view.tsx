@@ -1,16 +1,20 @@
-import { TextFileView, type WorkspaceLeaf } from 'obsidian';
+import { TextFileView, type Menu, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { createRoot, type Root } from 'react-dom/client';
 import { extractFencedBlock, parseStoryMapSourceYaml } from '@story-map/story-map-core';
 import { StoryMap } from '@story-map/react-story-map';
 import { STORY_MAP_FENCE, VIEW_TYPE_STORY_MAP } from './constants.js';
 import { resolveObsidianStory } from './resolver.js';
 
+export interface StoryMapViewHost {
+  openAsMarkdown(file: TFile, leaf: WorkspaceLeaf): void;
+}
+
 export class StoryMapView extends TextFileView {
   private root: Root | null = null;
   private hostEl: HTMLElement | null = null;
   private renderToken = 0;
 
-  constructor(leaf: WorkspaceLeaf) {
+  constructor(leaf: WorkspaceLeaf, private readonly host: StoryMapViewHost) {
     super(leaf);
   }
 
@@ -24,6 +28,20 @@ export class StoryMapView extends TextFileView {
 
   getIcon(): string {
     return 'map';
+  }
+
+  onPaneMenu(menu: Menu, source: string): void {
+    const file = this.file;
+    if (source === 'more-options' && file) {
+      menu.addItem((item) =>
+        item
+          .setTitle('Open as Markdown')
+          .setIcon('file-text')
+          .setSection('pane')
+          .onClick(() => this.host.openAsMarkdown(file, this.leaf)),
+      );
+    }
+    super.onPaneMenu(menu, source);
   }
 
   getViewData(): string {
