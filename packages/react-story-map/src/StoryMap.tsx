@@ -203,14 +203,24 @@ function SlideTitle({
   if (!slide.title) return null;
 
   const notePath = slide.notePath;
-  const interactive =
-    notePath !== undefined && (onNoteClick !== undefined || onNoteHover !== undefined);
-  if (!interactive) return <h2>{slide.title}</h2>;
+  if (notePath === undefined) return <h2>{slide.title}</h2>;
+
+  const linkClassName = ['story-map__note-link', noteLinkClassName].filter(Boolean).join(' ');
+
+  if (onNoteClick === undefined && onNoteHover === undefined) {
+    return (
+      <h2>
+        <a className={linkClassName} href={notePath}>
+          {slide.title}
+        </a>
+      </h2>
+    );
+  }
 
   return (
     <h2>
       <a
-        className={['story-map__note-link', noteLinkClassName].filter(Boolean).join(' ')}
+        className={linkClassName}
         href={notePath}
         data-href={notePath}
         onClick={(event) => {
