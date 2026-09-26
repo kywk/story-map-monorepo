@@ -1,0 +1,77 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - '[0-9]*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing plain-version release tag to build and attest
+        required: true
+        default: '0.1.2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: obsidian-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Validate tag against canonical manifest
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const manifest = JSON.parse(readFileSync("manifest.json", "utf8"));
+            if (!/^\d+\.\d+\.\d+$/.test(process.env.RELEASE_TAG) || manifest.version !== process.env.RELEASE_TAG) {
+              throw new Error("Release tag must match the canonical plugin version");
+            }
+          '
+      - name: Install pnpm
+        run: npm install --global pnpm@12.6.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: node scripts/check-obsidian-release.mjs
+      - name: Verify existing release assets before attesting
+        id: existing
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release-assets" --pattern main.js --pattern styles.css --pattern manifest.json
+            for asset in main.js styles.css manifest.json; do
+              cmp "packages/obsidian-story-map/dist/$asset" "$RUNNER_TEMP/release-assets/$asset"
+            done
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Attest the verified build assets
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            packages/obsidian-story-map/dist/main.js
+            packages/obsidian-story-map/dist/styles.css
+            packages/obsidian-story-map/dist/manifest.json
+      - name: Publish new release
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Geo Story Map $RELEASE_TAG" --generate-notes packages/obsidian-story-map/dist/main.js packages/obsidian-story-map/dist/manifest.json packages/obsidian-story-map/dist/styles.css

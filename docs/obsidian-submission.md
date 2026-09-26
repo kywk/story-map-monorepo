@@ -25,10 +25,10 @@ and generates `THIRD_PARTY_NOTICES.txt` from the actual bundled dependency licen
 The scoped view-state wrapper becomes inert on disable and preserves later wrappers.
 
 The GitHub tag must exactly equal the plugin version, **`0.1.2`**, without `v` or
-`npm-v`. Attach `main.js`, `manifest.json`, `styles.css` and `THIRD_PARTY_NOTICES.txt`.
+`npm-v`. Attach only `main.js`, `manifest.json` and `styles.css`.
 Do not attach a repository ZIP as a replacement for these files. Obsidian downloads
-the first three automatically; manual distributions should also retain the notices.
-The same full notices are appended to `main.js` so automatic installs retain them.
+these three automatically. Full dependency notices are appended to `main.js`; the
+separate local notice file is not attached to community releases.
 Root `versions.json` supports fallback downloads; a release attachment cannot replace it.
 
 ## Submit in the community directory
@@ -69,3 +69,8 @@ folder, disable that copy before enabling `geo-story-map`. Do not overwrite the 
 community plugin named Story Map.
 
 Official guide: [Submit your plugin](https://docs.obsidian.md/plugins/releasing/submit-plugin).
+
+The `.github/workflows/release-obsidian.yml` workflow builds and attests the three assets
+on plain-version tag pushes. Manual dispatch with an existing tag compares public assets
+before adding attestations; mismatches fail without replacing files. Verify provenance
+with `gh attestation verify main.js --repo kywk/story-map` (also for `styles.css`).

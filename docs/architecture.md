@@ -332,3 +332,8 @@ Archived milestones live under `history/`:
 - `history/2026-09-26-obsidian-community-release/` — Geo Story Map submission preparation.
 
 They are archival; the current contract is `SPEC.md` plus this document.
+
+Obsidian release automation lives in `.github/workflows/release-obsidian.yml`: it validates
+plain tags, builds/tests, attests the three release assets and publishes new releases.
+Manual dispatch attests an existing release only after comparing all three files. Full
+license notices remain embedded in `main.js`; the generated text file stays local.
