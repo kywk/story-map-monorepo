@@ -54,6 +54,13 @@ export interface StoryMapConfig {
   slides: StorySlide[];
 }
 
+export interface StoryMapSourceDefaults {
+  order?: StoryOrder | undefined;
+  dateField?: string | undefined;
+  noteDisplay?: StoryNoteDisplay | undefined;
+  map?: Partial<Omit<StoryMapOptions, 'center'>> | undefined;
+}
+
 export interface StoryMapSourceConfig {
   schema: 'storymap/v1';
   id?: string;

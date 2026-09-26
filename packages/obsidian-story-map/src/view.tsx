@@ -1,12 +1,17 @@
 import { TextFileView, type Menu, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { createRoot, type Root } from 'react-dom/client';
-import { extractFencedBlock, parseStoryMapSourceYaml } from '@story-map/story-map-core';
+import {
+  extractFencedBlock,
+  parseStoryMapSourceYaml,
+  type StoryMapSourceDefaults,
+} from '@story-map/story-map-core';
 import { StoryMap } from '@story-map/react-story-map';
 import { HOVER_LINK_SOURCE, STORY_MAP_FENCE, VIEW_TYPE_STORY_MAP } from './constants.js';
 import { resolveObsidianStory } from './resolver.js';
 
 export interface StoryMapViewHost {
   openAsMarkdown(file: TFile, leaf: WorkspaceLeaf): void;
+  getSourceDefaults(): StoryMapSourceDefaults;
 }
 
 export class StoryMapView extends TextFileView {
@@ -52,6 +57,10 @@ export class StoryMapView extends TextFileView {
     this.data = data;
     if (clear) this.clear();
     void this.render(data);
+  }
+
+  refresh(): void {
+    void this.render(this.data);
   }
 
   clear(): void {
@@ -105,7 +114,7 @@ export class StoryMapView extends TextFileView {
         );
       }
 
-      const parsed = parseStoryMapSourceYaml(block);
+      const parsed = parseStoryMapSourceYaml(block, this.host.getSourceDefaults());
       const story = await resolveObsidianStory(this.app, parsed, this.file?.path ?? '');
       if (token !== this.renderToken) return;
 

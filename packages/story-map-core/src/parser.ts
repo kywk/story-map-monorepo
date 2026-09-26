@@ -1,7 +1,12 @@
 import { load } from 'js-yaml';
 import { storyMapSchema, storyMapSourceSchema } from './schema.js';
 import { coerceLocation, coerceMedia, validCoordinates } from './helpers.js';
-import type { StoryMapConfig, StoryMapSourceConfig, StorySlide } from './types.js';
+import type {
+  StoryMapConfig,
+  StoryMapSourceConfig,
+  StoryMapSourceDefaults,
+  StorySlide,
+} from './types.js';
 
 export class StoryMapParseError extends Error {
   constructor(message: string) {
@@ -75,12 +80,54 @@ export function parseStoryMapYaml(source: string): StoryMapConfig {
   return parseStoryMapObject(load(source));
 }
 
-export function parseStoryMapSourceObject(value: unknown): StoryMapSourceConfig {
-  return storyMapSourceSchema.parse(normalizeStoryMapInput(value)) as StoryMapSourceConfig;
+export function parseStoryMapSourceObject(
+  value: unknown,
+  defaults?: StoryMapSourceDefaults,
+): StoryMapSourceConfig {
+  const normalized = normalizeStoryMapInput(value);
+  return storyMapSourceSchema.parse(applySourceDefaults(normalized, defaults)) as StoryMapSourceConfig;
 }
 
-export function parseStoryMapSourceYaml(source: string): StoryMapSourceConfig {
-  return parseStoryMapSourceObject(load(source));
+export function parseStoryMapSourceYaml(
+  source: string,
+  defaults?: StoryMapSourceDefaults,
+): StoryMapSourceConfig {
+  return parseStoryMapSourceObject(load(source), defaults);
+}
+
+export function applySourceDefaults(
+  value: unknown,
+  defaults?: StoryMapSourceDefaults,
+): unknown {
+  if (!defaults) return value;
+
+  const input = { ...asRecord(value) };
+  const map = { ...asRecord(input.map) };
+
+  if (input.order === undefined && defaults.order !== undefined) input.order = defaults.order;
+  if (input.dateField === undefined && defaults.dateField !== undefined) {
+    input.dateField = defaults.dateField;
+  }
+  if (input.noteDisplay === undefined && defaults.noteDisplay !== undefined) {
+    input.noteDisplay = defaults.noteDisplay;
+  }
+
+  const mapDefaults = defaults.map;
+  if (mapDefaults) {
+    if (map.zoom === undefined && mapDefaults.zoom !== undefined) map.zoom = mapDefaults.zoom;
+    if (map.minZoom === undefined && mapDefaults.minZoom !== undefined) map.minZoom = mapDefaults.minZoom;
+    if (map.maxZoom === undefined && mapDefaults.maxZoom !== undefined) map.maxZoom = mapDefaults.maxZoom;
+    if (map.tileUrl === undefined && mapDefaults.tileUrl !== undefined) map.tileUrl = mapDefaults.tileUrl;
+    if (map.attribution === undefined && mapDefaults.attribution !== undefined) {
+      map.attribution = mapDefaults.attribution;
+    }
+    if (map.showPath === undefined && mapDefaults.showPath !== undefined) {
+      map.showPath = mapDefaults.showPath;
+    }
+  }
+
+  if (Object.keys(map).length > 0) input.map = map;
+  return input;
 }
 
 export function toStoryMapConfig(source: StoryMapSourceConfig, slides: StorySlide[]): StoryMapConfig {

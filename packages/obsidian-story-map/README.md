@@ -36,6 +36,17 @@ map:
   the note in a new tab (default);
 - `full` — basics plus the note's Markdown body (frontmatter stripped) as slide text.
 
+## Plugin settings
+
+**Settings → Story Map** provides defaults for keys a document's `story-map` block omits:
+`order`, `dateField`, `noteDisplay`, and the `map` keys `zoom`, `minZoom`, `maxZoom`,
+`tileUrl`, `attribution`, and `showPath`.
+
+Resolution order per key: document block → plugin setting → built-in default. Changing a
+setting re-renders open StoryMap views immediately. Per-story values — `schema`, `id`, `title`,
+`noteFolder`, `map.center`, `slides`, and `height` — stay in the document and have no setting;
+the full-leaf Obsidian view always fills the pane.
+
 ## Behavior
 
 - A detected document opens in the full-leaf StoryMap view by default.

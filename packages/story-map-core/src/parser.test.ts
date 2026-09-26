@@ -240,6 +240,67 @@ describe('parseStoryMapSourceYaml', () => {
   });
 });
 
+describe('parseStoryMapSourceYaml defaults', () => {
+  const defaults = {
+    order: 'desc' as const,
+    dateField: 'visited',
+    noteDisplay: 'full' as const,
+    map: { zoom: 10, showPath: false, tileUrl: 'https://tiles.test/{z}/{x}/{y}.png' },
+  };
+
+  it('fills keys a document omits', () => {
+    const source = parseStoryMapSourceYaml('map:\n  minZoom: 3\n', defaults);
+
+    expect(source.order).toBe('desc');
+    expect(source.dateField).toBe('visited');
+    expect(source.noteDisplay).toBe('full');
+    expect(source.map.zoom).toBe(10);
+    expect(source.map.showPath).toBe(false);
+    expect(source.map.tileUrl).toBe('https://tiles.test/{z}/{x}/{y}.png');
+    expect(source.map.minZoom).toBe(3);
+  });
+
+  it('lets document values win over defaults', () => {
+    const source = parseStoryMapSourceYaml(
+      [
+        'order: asc',
+        'dateField: date-created',
+        'noteDisplay: basic',
+        'map:',
+        '  zoom: 4',
+        '  showPath: true',
+      ].join('\n'),
+      defaults,
+    );
+
+    expect(source.order).toBe('asc');
+    expect(source.dateField).toBe('date-created');
+    expect(source.noteDisplay).toBe('basic');
+    expect(source.map.zoom).toBe(4);
+    expect(source.map.showPath).toBe(true);
+  });
+
+  it('lets document Leaflet-style root keys win over map defaults', () => {
+    const source = parseStoryMapSourceYaml(
+      'lat: 1\nlong: 2\ndefaultZoom: 7\ntileServer: https://doc.test/{z}/{x}/{y}.png\n',
+      defaults,
+    );
+
+    expect(source.map.center).toEqual([1, 2]);
+    expect(source.map.zoom).toBe(7);
+    expect(source.map.tileUrl).toBe('https://doc.test/{z}/{x}/{y}.png');
+  });
+
+  it('still applies code defaults when no defaults are provided', () => {
+    const source = parseStoryMapSourceYaml('title: Only title');
+
+    expect(source.order).toBe('asc');
+    expect(source.dateField).toBe('date-created');
+    expect(source.noteDisplay).toBe('link');
+    expect(source.map.zoom).toBe(6);
+  });
+});
+
 describe('toStoryMapConfig', () => {
   it('drops source-only keys and keeps a canonical config', () => {
     const source = parseStoryMapSourceObject({

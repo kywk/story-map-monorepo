@@ -169,6 +169,8 @@ Owns:
 - including only folder-discovered Markdown files with `story-map-note: true`;
 - reading the configured `dateField` from note frontmatter;
 - applying the configured `noteDisplay` mode (basics, title link, or full note body);
+- providing a settings tab whose defaults fill keys a document omits;
+- refreshing open StoryMap views when default settings change;
 - applying `order: asc | desc` to automatically discovered notes;
 - resolving explicit `slide.note` WikiLinks;
 - reading note frontmatter through Obsidian metadata APIs;
@@ -269,6 +271,19 @@ For deterministic behavior, notes with a missing or unparseable date are retaine
 
 The renderer stays platform-agnostic: the Obsidian adapter resolves `link` into an opaque
 `slide.notePath` plus host callbacks, and resolves `full` into `slide.text`.
+
+### 6.4 Default precedence
+
+In the Obsidian adapter, source configuration values resolve in this order:
+
+1. keys present in the document's `story-map` block win;
+2. otherwise the plugin's default settings are used;
+3. otherwise built-in code defaults apply.
+
+The plugin settings screen exposes defaults for `order`, `dateField`, `noteDisplay`, and the
+`map` keys `zoom`, `minZoom`, `maxZoom`, `tileUrl`, `attribution`, and `showPath`. Values that
+vary per story — `schema`, `id`, `title`, `noteFolder`, `map.center`, `slides`, and `height` —
+are document-only (`height` is forced to `100%` in the Obsidian full-leaf host).
 
 ## 7. Canonical render model
 
@@ -375,6 +390,8 @@ Required behavior:
 - pane/container resize causes Leaflet size invalidation;
 - note `link` display registers a Page preview hover source, shows the page preview on title
   hover, and opens the note in a new tab on title click;
+- plugin settings provide story-map defaults; document values win over settings, which win over
+  built-in defaults, and changing settings refreshes open views;
 - invalid frontmatter or StoryMap YAML produces an in-view error rather than breaking the workspace.
 
 Default-open behavior is limited to detected `story-map: true` documents and uses a scoped `WorkspaceLeaf.setViewState` wrapper (the same approach as the Kanban plugin) so a file is rewritten to the StoryMap view only when its frontmatter marks it as a StoryMap. Blanket interception of unrelated Markdown files remains out of scope.

@@ -1,6 +1,13 @@
 import { Plugin, TFile, WorkspaceLeaf, type Menu, type MenuItem, type ViewState } from 'obsidian';
+import type { StoryMapSourceDefaults } from '@story-map/story-map-core';
 import { HOVER_LINK_DISPLAY, HOVER_LINK_SOURCE, VIEW_TYPE_STORY_MAP } from './constants.js';
 import { isStoryMapFile } from './detect.js';
+import {
+  DEFAULT_STORY_MAP_SETTINGS,
+  toSourceDefaults,
+  type StoryMapPluginSettings,
+} from './settings-data.js';
+import { StoryMapSettingTab } from './settings-tab.js';
 import { StoryMapView, type StoryMapViewHost } from './view.js';
 
 const TOP_SECTION = 'story-map-toggle';
@@ -31,13 +38,18 @@ function addMenuItemAtTop(menu: Menu, configure: (item: MenuItem) => void): void
 export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
   private readonly markdownMode = new Set<string>();
   private loaded = false;
+  private persistTimer: number | null = null;
+  settings: StoryMapPluginSettings = { ...DEFAULT_STORY_MAP_SETTINGS };
 
   async onload(): Promise<void> {
+    await this.loadSettings();
+
     this.registerView(VIEW_TYPE_STORY_MAP, (leaf) => new StoryMapView(leaf, this));
     this.registerHoverLinkSource(HOVER_LINK_SOURCE, {
       display: HOVER_LINK_DISPLAY,
       defaultMod: false,
     });
+    this.addSettingTab(new StoryMapSettingTab(this.app, this));
     this.patchLeafViewState();
     this.loaded = true;
 
@@ -100,6 +112,11 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
 
   onunload(): void {
     this.loaded = false;
+    if (this.persistTimer !== null) {
+      window.clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+      void this.saveData(this.settings);
+    }
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_STORY_MAP);
   }
 
@@ -110,6 +127,35 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
       state: { file: file.path },
       active: true,
     });
+  }
+
+  getSourceDefaults(): StoryMapSourceDefaults {
+    return toSourceDefaults(this.settings);
+  }
+
+  async loadSettings(): Promise<void> {
+    const stored = (await this.loadData()) as StoryMapPluginSettings | null;
+    this.settings = { ...DEFAULT_STORY_MAP_SETTINGS, ...(stored ?? {}) };
+  }
+
+  async saveSettings(): Promise<void> {
+    if (this.persistTimer !== null) window.clearTimeout(this.persistTimer);
+    this.persistTimer = window.setTimeout(() => {
+      this.persistTimer = null;
+      void this.persistSettings();
+    }, 300);
+  }
+
+  private async persistSettings(): Promise<void> {
+    await this.saveData(this.settings);
+    this.refreshStoryMapViews();
+  }
+
+  private refreshStoryMapViews(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_STORY_MAP)) {
+      const view = leaf.view;
+      if (view instanceof StoryMapView) view.refresh();
+    }
   }
 
   private async openAsStoryMap(file: TFile, leaf?: WorkspaceLeaf): Promise<void> {

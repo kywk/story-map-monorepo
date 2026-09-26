@@ -27,6 +27,24 @@ If a task conflicts with `SPEC.md`, update the implementation to match the spec 
   - `dateField`, default `date-created`.
 - Explicit `slides` preserve exact author order and are never implicitly appended to or reordered by folder discovery.
 - Reuse Leaflet-compatible note metadata such as `location`, `mapmarker`, and `mapzoom`.
+- Note presentation is controlled by `noteDisplay: basic | link | full`, default `link`:
+  - `basic` uses frontmatter metadata only;
+  - `link` links the slide title to the source note, with Obsidian Page preview on hover and
+    open-in-new-tab on click;
+  - `full` uses the frontmatter-stripped note body as slide text.
+- Defaultable `story-map` keys (Obsidian plugin settings): `order`, `dateField`, `noteDisplay`,
+  and `map.zoom`, `map.minZoom`, `map.maxZoom`, `map.tileUrl`, `map.attribution`,
+  `map.showPath`. Keys that vary per document — `schema`, `id`, `title`, `noteFolder`,
+  `map.center`, `slides`, `height` — must stay document-only and must not be added to plugin
+  settings or defaults. Resolution order for defaultable keys is always:
+  1. key present in the document's `story-map` block;
+  2. otherwise the plugin setting;
+  3. otherwise the built-in code default.
+  (`height` is forced to `100%` in the Obsidian full-leaf host.)
+- When adding or changing a defaultable `story-map` configuration key, also add its default to
+  `packages/obsidian-story-map/src/settings-data.ts`, expose it in `settings-tab.ts`, and cover
+  the precedence in `story-map-core` parser tests. Do not re-implement defaulting in the view;
+  use `parseStoryMapSourceYaml(source, defaults)`. Do not add per-document keys to defaults.
 
 ## Non-goals
 
