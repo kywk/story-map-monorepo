@@ -1,8 +1,9 @@
 # Releasing
 
 The three npm libraries release together; the bundled Obsidian plugin releases independently.
-The next npm release is `0.1.1` on `latest`. All three `0.1.0` versions already exist
-on npm; they cannot be overwritten. Obsidian submission is deferred.
+All three npm libraries are published at `0.1.1` on `latest` with GitHub OIDC provenance.
+Published versions are immutable; choose a new version for the next release.
+Obsidian submission is deferred.
 
 ## npm account setup
 
@@ -25,7 +26,9 @@ See [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/).
 
 **Current account state (2026-09-26):** all three packages were published at `0.1.0`
 on 2026-09-25 by `kywk`, still reference `story-map-monorepo`, and differ from current
-artifacts. The next release corrects the repository metadata and includes the new docs.
+artifacts. Release `0.1.1` corrected the repository metadata and includes the new docs.
+The owner confirmed all three publishers were saved, and GitHub OIDC publication
+succeeded in [run 36235091030](https://github.com/kywk/story-map/actions/runs/36235091030).
 Do not push `npm-v0.1.0`: immutable versions cannot be replaced.
 
 The local npm account resolves to `kywk`, but trust-list queries returned HTTP 403 with
@@ -54,8 +57,8 @@ Do not create placeholder packages or add a token fallback to this workflow.
 
 All three library versions must match; private root, example and Obsidian packages are
 excluded from the explicit release allowlist. Update the three package versions together
-for later releases, then refresh the lockfile. The three library manifests are now set to `0.1.1`; the private root and Obsidian
-versions remain independent.
+for later releases, then refresh the lockfile. The manifests currently match the published `0.1.1`; bump them to a new version
+before another release. Private root and Obsidian versions remain independent.
 
 ```bash
 pnpm install
@@ -75,10 +78,10 @@ Commit reviewed changes and version updates before tagging:
 
 ```bash
 git add .
-git commit -m "chore: prepare npm 0.1.1 release"
-git tag npm-v0.1.1
+git commit -m "chore: prepare npm X.Y.Z release"
+git tag npm-vX.Y.Z
 git push origin main
-git push origin npm-v0.1.1
+git push origin npm-vX.Y.Z
 ```
 
 Pushing `npm-v*` runs `.github/workflows/release-npm.yml`: tag/version validation,
