@@ -28,7 +28,7 @@ export class StoryMapView extends TextFileView {
   }
 
   getDisplayText(): string {
-    return this.file?.basename ?? 'Story Map';
+    return this.file?.basename ?? 'Geo Story Map';
   }
 
   getIcon(): string {

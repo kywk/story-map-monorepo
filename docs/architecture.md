@@ -131,7 +131,7 @@ Key invariants:
 ### `@story-map/obsidian-story-map`
 
 - `main.tsx` — `StoryMapPlugin`: registers the view and hover-link source, adds
-  `Open as Story Map` / `Open as Markdown` commands and file/pane menu entries, patches
+  `Open as Geo Story Map` / `Open as Markdown` commands and file/pane menu entries, patches
   `WorkspaceLeaf.setViewState` (scoped: only detected `story-map: true` files with no
   per-file Markdown opt-out), owns settings and view refresh.
 - `view.tsx` — `StoryMapView extends TextFileView`: extracts the fence, parses with
@@ -265,9 +265,18 @@ pnpm --filter @story-map/obsidian-story-map build
 ```
 
 Plugin artifacts land in `packages/obsidian-story-map/dist/` as `main.js`, `manifest.json`,
-`styles.css`, and `versions.json`; copy them to `<Vault>/.obsidian/plugins/story-map/`.
+`styles.css`, `versions.json`, and `THIRD_PARTY_NOTICES.txt`; install the JavaScript,
+manifest, CSS and notices in `<Vault>/.obsidian/plugins/geo-story-map/`.
 Repository-root `manifest.json` and `versions.json` are canonical plugin metadata;
 `esbuild.config.mjs` copies them into the plugin output. The first release is desktop-only.
+The plugin is named Geo Story Map, with ID `geo-story-map`, host view type
+`geo-story-map-view` and hover source `geo-story-map`. Markdown syntax and npm names
+remain unchanged. The build gathers full licenses from actual bundled dependency inputs,
+writes a notice file and appends the same notices as comments to `main.js` for automatic
+Obsidian installs. `scripts/check-obsidian-release.mjs` validates metadata and a bundled
+CommonJS import with only Obsidian external.
+Cleanup restores the scoped view wrapper only if it is still installed; later wrappers
+remain intact and any retained Geo Story Map wrapper forwards unchanged after disable.
 Release steps are in `../RELEASING.md`.
 
 The npm workflow `.github/workflows/release-npm.yml` responds to `npm-v*` tags, validates
@@ -286,6 +295,7 @@ partial release retry. Account-side Trusted Publishers must be configured separa
 | `packages/react-story-map/src/StoryMap.test.tsx` | slide-title rendering: plain heading, browser-link fallback, callback anchor |
 | `packages/obsidian-story-map/src/resolver.test.ts` | explicit slides, folder discovery, note display, media resolution |
 | `packages/obsidian-story-map/src/settings-data.test.ts` | settings → source defaults mapping |
+| `packages/obsidian-story-map/src/main.test.ts` | scoped routing, explicit Markdown mode and wrapper ownership on disable |
 | `packages/remark-story-map/src/index.test.ts` | fence transform, document flag, `VaultIndex`, folder discovery, `noteDisplay`, source-relative media, scan exclusions, host route resolver |
 
 The examples have no automated tests; verify them manually.
@@ -309,5 +319,6 @@ Archived milestones live under `history/`:
 - `history/2026-09-25-init/` — initial Obsidian MVP planning.
 - `history/2026-09-26-docusaurus-remark/` — Docusaurus/Remark milestone planning.
 - `history/2026-09-26-npm-release/` — approved npm release preparation and deferred Obsidian gates.
+- `history/2026-09-26-obsidian-community-release/` — Geo Story Map submission preparation.
 
 They are archival; the current contract is `SPEC.md` plus this document.

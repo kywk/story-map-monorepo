@@ -1,9 +1,10 @@
 {
-  "id": "story-map",
-  "name": "Story Map",
+  "id": "geo-story-map",
+  "name": "Geo Story Map",
   "version": "0.1.0",
   "minAppVersion": "1.8.0",
-  "description": "Open story-map documents as a dedicated full-leaf Leaflet StoryMap view.",
+  "description": "Turn Markdown notes into geographic stories with an interactive map and slides.",
   "author": "kywk",
-  "isDesktopOnly": true
+  "isDesktopOnly": true,
+  "authorUrl": "https://github.com/kywk"
 }

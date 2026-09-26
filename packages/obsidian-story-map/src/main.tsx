@@ -55,7 +55,7 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
 
     this.addCommand({
       id: 'open-as-story-map',
-      name: 'Open as Story Map',
+      name: 'Open as Geo Story Map',
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         if (!isStoryMapFile(this.app, file)) return false;
@@ -100,7 +100,7 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
 
         addMenuItemAtTop(menu, (item) =>
           item
-            .setTitle('Open as Story Map')
+            .setTitle('Open as Geo Story Map')
             .setIcon('map')
             .onClick(() => {
               void this.openAsStoryMap(file, leaf);
@@ -173,7 +173,8 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
     const original = WorkspaceLeaf.prototype.setViewState;
     const plugin = this;
 
-    WorkspaceLeaf.prototype.setViewState = function (
+    const wrapped: typeof original = function (
+      this: WorkspaceLeaf,
       state: ViewState,
       eState?: unknown,
     ): Promise<void> {
@@ -188,9 +189,12 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
       }
       return original.apply(this, [state, eState]);
     };
+    WorkspaceLeaf.prototype.setViewState = wrapped;
 
     this.register(() => {
-      WorkspaceLeaf.prototype.setViewState = original;
+      if (WorkspaceLeaf.prototype.setViewState === wrapped) {
+        WorkspaceLeaf.prototype.setViewState = original;
+      }
     });
   }
 }

@@ -7,6 +7,38 @@ A small, reusable Leaflet-based StoryMap stack. One Markdown source and one stan
 - an Obsidian plugin (file-backed full-leaf view);
 - a Docusaurus site via a Remark build-time transform and browser client.
 
+## Geo Story Map for Obsidian
+
+Turn Markdown notes into geographic stories with an interactive map and slides.
+Requires desktop Obsidian 1.8.0 or newer; mobile is not supported in this first release.
+The plugin is named **Geo Story Map** (`geo-story-map`); the source syntax remains
+`story-map`. It does not require the separate Obsidian Leaflet plugin.
+
+1. Download `main.js`, `manifest.json`, `styles.css`, and `THIRD_PARTY_NOTICES.txt`
+   from the [plugin release](https://github.com/kywk/story-map/releases/tag/0.1.0).
+2. Put them in `<Vault>/.obsidian/plugins/geo-story-map/`.
+3. Enable **Geo Story Map** in Settings → Community plugins. Community listing is pending.
+4. Create a Markdown document using the Story syntax below, then close and reopen it,
+   or run **Geo Story Map: Open as Geo Story Map** from the command palette.
+5. Use **Open as Markdown** to edit the same document; the source stays unchanged.
+
+Add notes under the document's `noteFolder`, for example `Travel/Chile/Places/Santiago.md`:
+
+```yaml
+---
+story-map-note: true
+title: Santiago
+location: [-33.4489, -70.6693]
+date-created: 2026-01-15
+description: The journey begins here.
+---
+```
+
+See [the plugin guide](packages/obsidian-story-map/README.md) for settings and note display.
+Geo Story Map is free, needs no plugin account, and includes no telemetry. Maps request
+OpenStreetMap tiles by default; configured tile providers and remote media connect to
+their specified hosts. The plugin reads notes and attachments inside your vault.
+
 ## Packages
 
 | Package | Role | Distribution |
@@ -89,11 +121,6 @@ before render time.
 - `RELEASING.md` — npm and Obsidian plugin release steps.
 - `docs/history/` — archived plans.
 
-## Obsidian release status
+## License
 
-The plugin's first release targets desktop only; community submission and Obsidian 1.8.0
-compatibility verification are pending. Build instructions and document examples are in
-[the plugin README](packages/obsidian-story-map/README.md). The root manifest is canonical.
-
-Maps use OpenStreetMap network tiles by default; custom tile providers and remote media
-connect to their configured hosts. See the plugin README's network disclosure.
+MIT; see [LICENSE](LICENSE). Bundled dependency notices accompany the plugin release.

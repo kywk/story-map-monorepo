@@ -27,7 +27,7 @@ export class StoryMapSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName('Story Map defaults')
+      .setName('Geo Story Map defaults')
       .setDesc(
         "Defaults applied when a document's story-map block omits a key. Document values always win, then these settings, then built-in defaults. Per-story values (title, noteFolder, map center) are set in each document instead.",
       )

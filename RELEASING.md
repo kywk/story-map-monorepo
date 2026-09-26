@@ -97,34 +97,12 @@ After a successful run, verify all three versions and their `latest` tags in npm
 install them in the real consuming app/site. OIDC/provenance and GitHub execution are
 not proven by local checks. The workflow does not create an Obsidian release.
 
-## Deferred Obsidian release
+## Obsidian community release
 
-`manifest.json` and `versions.json` at repository root are canonical. The package build
-copies them into `packages/obsidian-story-map/dist/` with `main.js` and `styles.css`.
-The first release is desktop-only, retains `Story Map` / `story-map` subject to directory
-uniqueness, and declares Obsidian `1.8.0` pending API review and testing on that version.
+The desktop plugin is **Geo Story Map**, ID `geo-story-map`, initial version `0.1.0`,
+minimum Obsidian `1.8.0`. Its versions are independent of the npm libraries.
+The previous candidate `story-map` is already used by an unrelated community plugin.
 
-Before submission:
-
-- Complete the manual host smoke checks in `AGENTS.md`, including Obsidian 1.8.0.
-- Review the scoped `WorkspaceLeaf.setViewState` wrapper and cleanup with other plugins.
-- Confirm name/ID uniqueness and the root README's install/use instructions.
-- Review dependency licenses and network disclosures (default OpenStreetMap tiles,
-  configured tile providers, remote media). Keep map attribution visible.
-- Update root manifest and plugin package version together. Update root `versions.json`
-  when `minAppVersion` changes; it need not list every release.
-
-```bash
-pnpm --filter @story-map/obsidian-story-map build
-```
-
-Create a GitHub release with a tag exactly equal to the manifest version (for example
-`0.1.0`, without `npm-v` or `v`) and attach `dist/main.js`, `dist/manifest.json` and
-`dist/styles.css`. Root `versions.json` controls fallback installs; attaching it is not
-a substitute for committing it. Manual installation copies the three plugin files into
-`<Vault>/.obsidian/plugins/story-map/`.
-
-Sign in to [Obsidian Community](https://community.obsidian.md), connect GitHub and submit
-through the directory. Address scanner/review findings before claiming approval.
-The previous `obsidian-releases` PR instructions are obsolete; use the
-[official submission guide](https://docs.obsidian.md/plugins/releasing/submit-plugin).
+See [the submission guide](docs/obsidian-submission.md) for build verification, exact
+GitHub release assets, community account submission and follow-up releases.
+Repository-root `manifest.json` and `versions.json` are canonical.

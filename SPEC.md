@@ -157,6 +157,8 @@ plugin at runtime.
 
 The first plugin release targets desktop only. The declared minimum Obsidian version is
 1.8.0; compatibility on that version must be verified before community submission.
+Its community identity is `Geo Story Map` / `geo-story-map`; the source syntax and npm
+package names remain unchanged.
 
 ### `remark-story-map`
 
@@ -328,10 +330,10 @@ The plugin uses a file-backed `TextFileView`. Required behavior:
 
 - StoryMap fills the full Workspace leaf content area (height forced to `100%`);
 - the same file switches between StoryMap and Markdown views without changing source;
-- commands/menu include `Open as Story Map` and `Open as Markdown`, including the StoryMap
+- commands/menu include `Open as Geo Story Map` and `Open as Markdown`, including the StoryMap
   pane menu;
 - opening a detected `story-map: true` document shows the StoryMap view by default;
-  `Open as Markdown` opts that file out until `Open as Story Map` is invoked again;
+  `Open as Markdown` opts that file out until `Open as Geo Story Map` is invoked again;
 - tab title follows the Markdown filename; split panes and pop-out windows keep working;
 - `noteDisplay: link` registers a Page preview hover source and opens the note in a new tab;
 - plugin settings provide defaults; changing them refreshes open views;

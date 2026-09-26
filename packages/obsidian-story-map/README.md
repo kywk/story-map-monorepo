@@ -1,10 +1,11 @@
-# Obsidian Story Map
+# Geo Story Map
 
 Obsidian adapter that opens a StoryMap document as a dedicated, file-backed full-leaf
 view similar to Obsidian Kanban.
 
 The first release targets desktop only. The declared minimum version is Obsidian 1.8.0;
-compatibility testing on that version is required before community submission.
+the maintainer reports successful 1.8.0 desktop checks for opening, Markdown switching,
+split-pane resize and plugin disable cleanup.
 
 ## Network use
 
@@ -50,7 +51,7 @@ map:
 
 ## Plugin settings
 
-**Settings → Story Map** provides defaults for keys a document's `story-map` block omits:
+**Settings → Geo Story Map** provides defaults for keys a document's `story-map` block omits:
 `order`, `dateField`, `noteDisplay`, and the `map` keys `zoom`, `minZoom`, `maxZoom`,
 `tileUrl`, `attribution`, and `showPath`.
 
@@ -63,7 +64,7 @@ the full-leaf Obsidian view always fills the pane.
 
 - A detected document opens in the full-leaf StoryMap view by default.
 - `Open as Markdown` (command, file menu, and the StoryMap view's pane menu) switches the same
-  file back to the normal Markdown view without changing its source; `Open as Story Map`
+  file back to the normal Markdown view without changing its source; `Open as Geo Story Map`
   returns it to the StoryMap view.
 - `noteFolder` recursively discovers Markdown notes with `story-map-note: true`; explicit
   `slides` keep their exact configured order and are never appended to.
@@ -82,11 +83,17 @@ multiple configuration blocks per document are out of scope for v1.
 pnpm --filter @story-map/obsidian-story-map build
 ```
 
-Copy `dist/main.js`, `dist/manifest.json`, `dist/styles.css`, and `dist/versions.json` into:
+Copy `dist/main.js`, `dist/manifest.json`, `dist/styles.css`, and
+`dist/THIRD_PARTY_NOTICES.txt` into:
 
 ```text
-<Vault>/.obsidian/plugins/story-map/
+<Vault>/.obsidian/plugins/geo-story-map/
 ```
 
 The repository-root `manifest.json` and `versions.json` are canonical; the build copies
-them into `dist`. Community submission and Obsidian 1.8.0 smoke testing are deferred.
+them into `dist`. See [submission instructions](../../docs/obsidian-submission.md) for release and review status.
+
+## License
+
+MIT. The build emits `THIRD_PARTY_NOTICES.txt` containing the full notices for the
+dependencies actually bundled into `main.js`; keep it with manual distributions.
