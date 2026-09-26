@@ -11,9 +11,9 @@ A small, reusable Leaflet-based StoryMap stack. One Markdown source and one stan
 
 | Package | Role | Distribution |
 | --- | --- | --- |
-| `@story-map/story-map-core` | Framework-agnostic schema, parser, and helpers | npm (release preparation) |
-| `@story-map/react-story-map` | React + Leaflet renderer | npm (release preparation) |
-| `@story-map/remark-story-map` | Remark build-time transform + browser client | npm (release preparation) |
+| `@story-map/story-map-core` | Framework-agnostic schema, parser, and helpers | npm (0.1.0; 0.1.1 preparation) |
+| `@story-map/react-story-map` | React + Leaflet renderer | npm (0.1.0; 0.1.1 preparation) |
+| `@story-map/remark-story-map` | Remark build-time transform + browser client | npm (0.1.0; 0.1.1 preparation) |
 | `@story-map/obsidian-story-map` | Obsidian file-backed view and Vault resolver | private |
 
 ## Quick start

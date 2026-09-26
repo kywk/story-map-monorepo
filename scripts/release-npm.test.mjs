@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = mkdtempSync(join(tmpdir(), 'story-map-release-test-'));
 const names = ['story-map-core', 'react-story-map', 'remark-story-map'];
+const version = JSON.parse(readFileSync(join(root, 'packages/story-map-core/package.json'))).version;
 const integrity = {};
 for (const name of names) {
   const manifest = JSON.parse(readFileSync(join(root, 'packages', name, 'package.json')));
@@ -48,7 +49,7 @@ if (args[0] === 'publish') {
 `, { mode: 0o755 });
 writeFileSync(join(bin, 'package.json'), '{"type":"module"}');
 
-function attempt(mode, tag = 'npm-v0.1.0') {
+function attempt(mode, tag = `npm-v${version}`) {
   const log = join(fixture, `${mode}-${tag}.log`);
   writeFileSync(log, '');
   const result = spawnSync('node', [join(root, 'scripts/release-npm.mjs'), '--publish'], {
@@ -63,7 +64,7 @@ test('publishes missing packages in dependency order', () => {
   const result = attempt('missing');
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.published.map(path => path.split('/').at(-1)),
-    names.map(name => `story-map-${name}-0.1.0.tgz`));
+    names.map(name => `story-map-${name}-${version}.tgz`));
 });
 test('retry skips immutable versions only when integrity matches', () => {
   const result = attempt('matching');
@@ -74,7 +75,7 @@ test('partial release retry publishes only remaining packages', () => {
   const result = attempt('partial');
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.published.map(path => path.split('/').at(-1)),
-    names.slice(1).map(name => `story-map-${name}-0.1.0.tgz`));
+    names.slice(1).map(name => `story-map-${name}-${version}.tgz`));
 });
 for (const mode of ['conflict', 'network']) {
   test(`${mode} stops publication`, () => {
@@ -84,7 +85,7 @@ for (const mode of ['conflict', 'network']) {
   });
 }
 test('mismatched release tag stops publication', () => {
-  const result = attempt('missing', 'npm-v0.2.0');
+  const result = attempt('missing', 'npm-v99.0.0');
   assert.notEqual(result.status, 0);
   assert.deepEqual(result.published, []);
 });
