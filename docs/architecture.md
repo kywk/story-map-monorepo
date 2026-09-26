@@ -131,7 +131,7 @@ Key invariants:
 ### `@story-map/obsidian-story-map`
 
 - `main.tsx` — `StoryMapPlugin`: registers the view and hover-link source, adds
-  `Open as Geo Story Map` / `Open as Markdown` commands and file/pane menu entries, patches
+  `Open as map` / `Open as Markdown` commands and file/pane menu entries, patches
   `WorkspaceLeaf.setViewState` (scoped: only detected `story-map: true` files with no
   per-file Markdown opt-out), owns settings and view refresh.
 - `view.tsx` — `StoryMapView extends TextFileView`: extracts the fence, parses with
@@ -142,7 +142,8 @@ Key invariants:
   recursive `noteFolder` discovery, frontmatter inheritance, local media → resource URL,
   `noteDisplay` handling.
 - `detect.ts` — `isStoryMapFile` reads `story-map: true` frontmatter.
-- `settings-data.ts` / `settings-tab.ts` — plugin defaults and their UI.
+- `settings-data.ts` / `settings-tab.ts` — plugin defaults and their UI, with searchable
+  setting definitions on Obsidian 1.13+ and imperative rendering on 1.8–1.12.
 - `constants.ts` — view type, fence language, hover-link identifiers.
 - `esbuild.config.mjs` — bundles `src/main.tsx` to `dist/main.js` (CJS, `obsidian`
   external) and copies CSS/manifest/versions.
@@ -275,8 +276,14 @@ remain unchanged. The build gathers full licenses from actual bundled dependency
 writes a notice file and appends the same notices as comments to `main.js` for automatic
 Obsidian installs. `scripts/check-obsidian-release.mjs` validates metadata and a bundled
 CommonJS import with only Obsidian external.
+The Obsidian-only `build/react-script-policy.mjs` disables React DOM's unused script
+preinit/resource and script-rendering paths with an explicit error. It validates the
+upstream source shape and rejects script creation in the final bundle; npm hosts retain
+standard React behavior. DOM tests cover normal rendering and blocked script operations.
 Cleanup restores the scoped view wrapper only if it is still installed; later wrappers
 remain intact and any retained Geo Story Map wrapper forwards unchanged after disable.
+Disabling the plugin preserves workspace leaves and lets Obsidian own view teardown;
+the view unmounts React during its unload. Static host dimensions are owned by CSS.
 Release steps are in `../RELEASING.md`.
 
 The npm workflow `.github/workflows/release-npm.yml` responds to `npm-v*` tags, validates

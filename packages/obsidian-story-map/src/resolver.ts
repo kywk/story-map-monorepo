@@ -132,5 +132,5 @@ function resolveWikiFile(app: App, link: string, sourcePath: string): TFile | nu
 
 function readFrontmatter(app: App, file: TFile): Record<string, unknown> {
   const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
-  return (frontmatter ?? {}) as Record<string, unknown>;
+  return frontmatter ?? {};
 }

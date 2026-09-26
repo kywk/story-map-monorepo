@@ -3,11 +3,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import { assertNoScriptCreation } from '../packages/obsidian-story-map/build/react-script-policy.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json')));
 const plugin = JSON.parse(readFileSync(join(root, 'packages/obsidian-story-map/package.json')));
 const dist = join(root, 'packages/obsidian-story-map/dist');
+assertNoScriptCreation(readFileSync(join(dist, 'main.js'), 'utf8'));
 assert.equal(manifest.id, 'geo-story-map');
 assert.equal(manifest.name, 'Geo Story Map');
 assert.match(manifest.version, /^\d+\.\d+\.\d+$/);

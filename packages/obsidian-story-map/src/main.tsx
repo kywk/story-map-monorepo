@@ -55,7 +55,7 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
 
     this.addCommand({
       id: 'open-as-story-map',
-      name: 'Open as Geo Story Map',
+      name: 'Open as map',
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         if (!isStoryMapFile(this.app, file)) return false;
@@ -117,7 +117,6 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
       this.persistTimer = null;
       void this.saveData(this.settings);
     }
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE_STORY_MAP);
   }
 
   openAsMarkdown(file: TFile, leaf: WorkspaceLeaf): void {
@@ -170,24 +169,28 @@ export default class StoryMapPlugin extends Plugin implements StoryMapViewHost {
   }
 
   private patchLeafViewState(): void {
-    const original = WorkspaceLeaf.prototype.setViewState;
-    const plugin = this;
-
+    const descriptor = Object.getOwnPropertyDescriptor(WorkspaceLeaf.prototype, 'setViewState') as {
+      value: WorkspaceLeaf['setViewState'];
+    };
+    const original = descriptor.value;
+    const resolveState = (state: ViewState): ViewState => {
+      const path: unknown = state.state?.file;
+      if (this.loaded && state.type === 'markdown' && typeof path === 'string') {
+        if (!this.markdownMode.has(path)) {
+          const file = this.app.vault.getAbstractFileByPath(path);
+          if (file instanceof TFile && isStoryMapFile(this.app, file)) {
+            return { ...state, type: VIEW_TYPE_STORY_MAP };
+          }
+        }
+      }
+      return state;
+    };
     const wrapped: typeof original = function (
       this: WorkspaceLeaf,
       state: ViewState,
       eState?: unknown,
     ): Promise<void> {
-      if (plugin.loaded && state.type === 'markdown' && state.state?.file) {
-        const path = state.state.file as string;
-        if (!plugin.markdownMode.has(path)) {
-          const file = plugin.app.vault.getAbstractFileByPath(path);
-          if (file instanceof TFile && isStoryMapFile(plugin.app, file)) {
-            return original.apply(this, [{ ...state, type: VIEW_TYPE_STORY_MAP }, eState]);
-          }
-        }
-      }
-      return original.apply(this, [state, eState]);
+      return original.call(this, resolveState(state), eState);
     };
     WorkspaceLeaf.prototype.setViewState = wrapped;
 

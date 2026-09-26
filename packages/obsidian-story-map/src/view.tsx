@@ -86,13 +86,8 @@ export class StoryMapView extends TextFileView {
     if (!this.hostEl || !this.contentEl.contains(this.hostEl)) {
       this.contentEl.empty();
       this.contentEl.addClass('story-map-view-content');
-      this.contentEl.style.height = '100%';
-      this.contentEl.style.padding = '0';
-      this.contentEl.style.overflow = 'hidden';
 
       const host = this.contentEl.createDiv({ cls: 'story-map-view' });
-      host.style.height = '100%';
-      host.style.width = '100%';
       this.hostEl = host;
     }
     return this.hostEl;

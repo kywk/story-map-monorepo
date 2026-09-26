@@ -1,6 +1,7 @@
 import esbuild from 'esbuild';
 import { appendFile, cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { assertNoScriptCreation, reactScriptPolicy } from './build/react-script-policy.mjs';
 
 const production = process.argv[2] === 'production';
 
@@ -24,6 +25,7 @@ const scriptBuild = await esbuild.build({
   external: ['obsidian'],
   metafile: true,
   legalComments: 'eof',
+  plugins: [reactScriptPolicy()],
 });
 
 await esbuild.build({
@@ -58,6 +60,7 @@ for (const input of Object.keys(scriptBuild.metafile.inputs)) {
   }
 }
 const notices = ['StoryMap bundled dependency notices', await readFile('../../LICENSE', 'utf8')];
+notices.push('Host-local React DOM modification: script-element creation and rendering are disabled by the Geo Story Map build policy. Upstream license notices are retained below.');
 for (const [name, { manifest, directory }] of [...bundledPackages].sort(([a], [b]) => a.localeCompare(b))) {
   const files = (await readdir(directory)).filter(file => /^(licen[cs]e|copying)(\..*)?$/i.test(file));
   if (files.length === 0) throw new Error(`Missing bundled license notice for ${name}`);
@@ -66,3 +69,4 @@ for (const [name, { manifest, directory }] of [...bundledPackages].sort(([a], [b
 }
 await writeFile('dist/THIRD_PARTY_NOTICES.txt', notices.join('\n'));
 await appendFile('dist/main.js', '\n' + notices.join('\n').split('\n').map(line => '// ' + line).join('\n') + '\n');
+assertNoScriptCreation(await readFile('dist/main.js', 'utf8'));

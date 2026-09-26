@@ -1,6 +1,6 @@
 {
   "name": "@story-map/obsidian-story-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Obsidian file-backed full-leaf StoryMap view and Vault resolver.",
   "license": "MIT",
   "repository": {
@@ -25,7 +25,9 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@types/jsdom": "21.1.7",
     "esbuild": "^0.27.3",
+    "jsdom": "26.1.0",
     "obsidian": "^1.13.1"
   }
 }

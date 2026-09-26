@@ -79,6 +79,12 @@ describe('scoped Story Map view routing', () => {
     expect(forwarding).toHaveBeenCalledWith({ type: 'markdown', state: { file: 'story.md' }, active: true }, undefined);
   });
 
+  it('preserves workspace leaves on unload', () => {
+    const { plugin, unload } = setup();
+    unload();
+    expect(plugin.app.workspace.detachLeavesOfType).not.toHaveBeenCalled();
+  });
+
   it('restores its own wrapper on unload', () => {
     const { forwarding, unload } = setup();
     unload();
