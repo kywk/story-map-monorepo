@@ -1,5 +1,9 @@
 # Geo Story Map community submission
 
+The [public 0.1.0 release](https://github.com/kywk/story-map/releases/tag/0.1.0) is ready
+with verified download assets. Community submission/review status is still pending;
+the plugin is not claimed to be available through the in-app directory yet.
+
 Plugin: **Geo Story Map**, ID `geo-story-map`, version `0.1.0`. Desktop only; minimum
 Obsidian `1.8.0`. The maintainer reports successful 1.8.0 opening, Markdown switching,
 split-pane resize and disable-cleanup checks. A public API declaration review found no

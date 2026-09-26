@@ -46,7 +46,7 @@ their specified hosts. The plugin reads notes and attachments inside your vault.
 | `@story-map/story-map-core` | Framework-agnostic schema, parser, and helpers | npm (0.1.1) |
 | `@story-map/react-story-map` | React + Leaflet renderer | npm (0.1.1) |
 | `@story-map/remark-story-map` | Remark build-time transform + browser client | npm (0.1.1) |
-| `@story-map/obsidian-story-map` | Obsidian file-backed view and Vault resolver | private |
+| `@story-map/obsidian-story-map` | Geo Story Map Obsidian view and Vault resolver | GitHub Release 0.1.0 |
 
 ## Quick start
 
