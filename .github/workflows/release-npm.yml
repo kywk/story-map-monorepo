@@ -15,8 +15,6 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      RELEASE_PACK_DIR: ${{ runner.temp }}/story-map-release
     permissions:
       contents: read
       id-token: write
@@ -35,6 +33,10 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - name: Verify packed packages in an isolated consumer
+        env:
+          RELEASE_PACK_DIR: ${{ runner.temp }}/story-map-release
         run: node scripts/release-npm.mjs
       - name: Publish libraries through npm OIDC
+        env:
+          RELEASE_PACK_DIR: ${{ runner.temp }}/story-map-release
         run: node scripts/release-npm.mjs --publish
