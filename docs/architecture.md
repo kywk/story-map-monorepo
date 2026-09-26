@@ -9,7 +9,7 @@ reference) and the Docusaurus/Remark publishing path.
 ## 1. Repository layout
 
 ```text
-story-map-monorepo/
+story-map/
   package.json                 pnpm workspace root scripts
   pnpm-workspace.yaml          packages/* and examples/*
   tsconfig.base.json           shared strict TS options

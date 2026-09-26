@@ -1,4 +1,4 @@
-# Story Map Monorepo
+# Story Map
 
 A small, reusable Leaflet-based StoryMap stack. One Markdown source and one standard
 `StoryMapConfig` render in three hosts:

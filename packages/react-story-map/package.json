@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kywk/story-map-monorepo.git",
+    "url": "git+https://github.com/kywk/story-map.git",
     "directory": "packages/react-story-map"
   },
   "publishConfig": {

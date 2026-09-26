@@ -86,8 +86,8 @@ README are already in place.
 Until the libraries are published to npm, the external site can consume a local checkout:
 
 ```bash
-pnpm link /path/to/story-map-monorepo/packages/remark-story-map
-pnpm link /path/to/story-map-monorepo/packages/react-story-map
+pnpm link /path/to/story-map/packages/remark-story-map
+pnpm link /path/to/story-map/packages/react-story-map
 ```
 
 After publishing, switch to normal semver ranges, e.g. `"@story-map/remark-story-map": "^0.1.0"`.
