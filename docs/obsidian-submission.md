@@ -1,10 +1,10 @@
 # Geo Story Map community submission
 
-The [public 0.1.1 release](https://github.com/kywk/story-map/releases/tag/0.1.1) is ready
+The [public 0.1.2 release](https://github.com/kywk/story-map/releases/tag/0.1.2) is ready
 with verified download assets. Community submission/review status is still pending;
 the plugin is not claimed to be available through the in-app directory yet.
 
-Plugin: **Geo Story Map**, ID `geo-story-map`, version `0.1.1`. Desktop only; minimum
+Plugin: **Geo Story Map**, ID `geo-story-map`, version `0.1.2`. Desktop only; minimum
 Obsidian `1.8.0`. The maintainer reports successful 1.8.0 opening, Markdown switching,
 split-pane resize and disable-cleanup checks. A public API declaration review found no
 required API newer than 1.8.0 (`revealLeaf` was introduced in 1.7.2).
@@ -24,7 +24,7 @@ copies them into `packages/obsidian-story-map/dist/`. It also bundles JavaScript
 and generates `THIRD_PARTY_NOTICES.txt` from the actual bundled dependency licenses.
 The scoped view-state wrapper becomes inert on disable and preserves later wrappers.
 
-The GitHub tag must exactly equal the plugin version, **`0.1.1`**, without `v` or
+The GitHub tag must exactly equal the plugin version, **`0.1.2`**, without `v` or
 `npm-v`. Attach `main.js`, `manifest.json`, `styles.css` and `THIRD_PARTY_NOTICES.txt`.
 Do not attach a repository ZIP as a replacement for these files. Obsidian downloads
 the first three automatically; manual distributions should also retain the notices.

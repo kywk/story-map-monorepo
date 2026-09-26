@@ -42,8 +42,9 @@ export class StoryMapSettingTab extends PluginSettingTab {
   }
 
   private refreshSettings(): void {
-    if (typeof this.update === 'function') this.update();
-    else this.renderFallback();
+    // The definitions and their search labels are static. Only control values change;
+    // redraw the same rows using APIs available on every supported host.
+    this.renderFallback();
   }
 
   private settingRows(): Array<Omit<SettingDefinitionRender, 'render'> & { render: (setting: Setting) => void }> {

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@story-map/story-map-core": ["./packages/story-map-core/src/index.ts"],
+      "@story-map/react-story-map": ["./packages/react-story-map/src/index.ts"],
+      "@story-map/remark-story-map": ["./packages/remark-story-map/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx", "examples/react/src/**/*.ts", "examples/react/src/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/dist/**", "**/node_modules/**"]
+}

@@ -99,7 +99,7 @@ not proven by local checks. The workflow does not create an Obsidian release.
 
 ## Obsidian community release
 
-The desktop plugin is **Geo Story Map**, ID `geo-story-map`, current version `0.1.1`,
+The desktop plugin is **Geo Story Map**, ID `geo-story-map`, current version `0.1.2`,
 minimum Obsidian `1.8.0`. Its versions are independent of the npm libraries.
 The previous candidate `story-map` is already used by an unrelated community plugin.
 

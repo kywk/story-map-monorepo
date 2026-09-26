@@ -13,6 +13,7 @@ story-map/
   package.json                 pnpm workspace root scripts
   pnpm-workspace.yaml          packages/* and examples/*
   tsconfig.base.json           shared strict TS options
+  tsconfig.json                no-emit workspace analysis; source paths for unbuilt checkouts
   SPEC.md AGENTS.md README.md  contract, working agreement, overview
   docs/                        this architecture doc + history/
   packages/
@@ -144,6 +145,8 @@ Key invariants:
 - `detect.ts` — `isStoryMapFile` reads `story-map: true` frontmatter.
 - `settings-data.ts` / `settings-tab.ts` — plugin defaults and their UI, with searchable
   setting definitions on Obsidian 1.13+ and imperative rendering on 1.8–1.12.
+  Reset redraws the fixed rows using legacy-compatible APIs; it does not call 1.13's
+  `SettingsTab.update()`.
 - `constants.ts` — view type, fence language, hover-link identifiers.
 - `esbuild.config.mjs` — bundles `src/main.tsx` to `dist/main.js` (CJS, `obsidian`
   external) and copies CSS/manifest/versions.
@@ -257,7 +260,7 @@ story-map fence
 ```bash
 corepack enable
 pnpm install
-pnpm typecheck        # tsc -b through project references
+pnpm typecheck        # root source analysis, then tsc -b through project references
 pnpm test             # vitest run in core, react, obsidian, remark
 pnpm build            # tsc -b for libraries, esbuild for the plugin, vite for the example
 pnpm dev:obsidian     # build core + react, then obsidian dev (single build, not watch)

@@ -15,7 +15,7 @@ The plugin is named **Geo Story Map** (`geo-story-map`); the source syntax remai
 `story-map`. It does not require the separate Obsidian Leaflet plugin.
 
 1. Download `main.js`, `manifest.json`, `styles.css`, and `THIRD_PARTY_NOTICES.txt`
-   from the [plugin release](https://github.com/kywk/story-map/releases/tag/0.1.1).
+   from the [plugin release](https://github.com/kywk/story-map/releases/tag/0.1.2).
 2. Put them in `<Vault>/.obsidian/plugins/geo-story-map/`.
 3. Enable **Geo Story Map** in Settings → Community plugins. Community listing is pending.
 4. Create a Markdown document using the Story syntax below, then close and reopen it,
@@ -46,7 +46,7 @@ their specified hosts. The plugin reads notes and attachments inside your vault.
 | `@story-map/story-map-core` | Framework-agnostic schema, parser, and helpers | npm (0.1.1) |
 | `@story-map/react-story-map` | React + Leaflet renderer | npm (0.1.1) |
 | `@story-map/remark-story-map` | Remark build-time transform + browser client | npm (0.1.1) |
-| `@story-map/obsidian-story-map` | Geo Story Map Obsidian view and Vault resolver | GitHub Release 0.1.1 |
+| `@story-map/obsidian-story-map` | Geo Story Map Obsidian view and Vault resolver | GitHub Release 0.1.2 |
 
 ## Quick start
 

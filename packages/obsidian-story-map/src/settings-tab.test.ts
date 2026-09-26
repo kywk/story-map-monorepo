@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('obsidian', () => {
   class PluginSettingTab {
-    containerEl = { empty: vi.fn(), rows: [] as Setting[] };
+    containerEl = { empty: vi.fn(() => { this.containerEl.rows = []; }), rows: [] as Setting[] };
   }
   class Control {
     inputEl = { type: '' };
@@ -68,15 +68,19 @@ describe('settings definitions and legacy rendering', () => {
     expect(plugin.saveSettings).toHaveBeenCalledOnce();
     container.rows.find((row) => row.name === 'Restore defaults')?.control?.click?.();
     expect(container.empty).toHaveBeenCalledTimes(2);
+    expect(container.rows.find((row) => row.name === 'Default date field')?.control?.value).toBe('');
   });
 
-  it('refreshes modern definitions after restoring defaults', () => {
+  it('redraws reset values without invoking newer host APIs', () => {
     const { tab, container } = setup();
     const update = vi.fn();
     Object.assign(tab, { update });
+    const definitions = tab.getSettingDefinitions().map((row) => 'name' in row ? row.name : '');
     tab.display();
     container.rows.find((row) => row.name === 'Restore defaults')?.control?.click?.();
-    expect(update).toHaveBeenCalledOnce();
-    expect(container.empty).toHaveBeenCalledOnce();
+    expect(update).not.toHaveBeenCalled();
+    expect(container.empty).toHaveBeenCalledTimes(2);
+    expect(tab.getSettingDefinitions().map((row) => 'name' in row ? row.name : '')).toEqual(definitions);
+    expect(container.rows.find((row) => row.name === 'Default date field')?.control?.value).toBe('');
   });
 });
