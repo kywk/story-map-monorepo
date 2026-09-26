@@ -157,7 +157,7 @@ export function StoryMap({
       }}
     >
       <div className="story-map__map" ref={mapElementRef} />
-      <article className="story-map__panel">
+      <div className="story-map__panel">
         {story.title && <div className="story-map__story-title">{story.title}</div>}
         <SlideTitle
           slide={activeSlide}
@@ -184,7 +184,7 @@ export function StoryMap({
             Next
           </button>
         </nav>
-      </article>
+      </div>
     </section>
   );
 }

@@ -39,7 +39,7 @@
   font-size: 0.9rem;
 }
 
-.story-map__panel {
+.story-map .story-map__panel {
   position: absolute;
   z-index: 500;
   left: 16px;
@@ -145,7 +145,7 @@
 }
 
 @media (max-width: 640px) {
-  .story-map__panel {
+  .story-map .story-map__panel {
     left: 8px;
     right: 8px;
     bottom: 8px;
