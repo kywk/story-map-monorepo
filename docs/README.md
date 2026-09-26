@@ -1,0 +1,22 @@
+# Documentation
+
+Start here when you need to understand or change StoryMap.
+
+| Document | Purpose |
+| --- | --- |
+| [`../README.md`](../README.md) | What the project is, packages, quick start, source syntax. |
+| [`../SPEC.md`](../SPEC.md) | Product and architecture contract (source of truth). |
+| [`../AGENTS.md`](../AGENTS.md) | Working agreement, boundaries, definition of done. |
+| [`architecture.md`](architecture.md) | Concrete implementation map: packages, data flow, files, APIs, commands. |
+| [`history/`](history/) | Archived plans and background. Superseded, not authoritative. |
+
+Recommended reading order for a new agent: `README.md` -> `architecture.md` -> `SPEC.md` -> `AGENTS.md`.
+
+## Documentation rules
+
+- `SPEC.md` and `architecture.md` must describe the current code, not a planned future.
+- Move completed or superseded plans to `docs/history/<YYYY-MM-DD>-<slug>/` instead of editing them.
+- Delete development-process notes (handoffs, scratch status, conversation logs) once their work is merged.
+- Keep the top-level docs short; put implementation detail in `docs/architecture.md`.
+- The repeatable workflow is captured in the `docs-maintenance` skill at
+  `.agents/skills/docs-maintenance/SKILL.md`.
