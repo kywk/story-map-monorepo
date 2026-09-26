@@ -7,18 +7,23 @@ import {
   parseWikiLinkRef,
   slideFromNoteFrontmatter,
   sortNoteDates,
+  stripFrontmatter,
   toStoryMapConfig,
   toTimestamp,
   type StoryMapConfig,
   type StoryMapSourceConfig,
   type StoryMedia,
+  type StoryNoteDisplay,
   type StorySlide,
 } from '@story-map/story-map-core';
 
 export interface VaultResolveOptions {
   vaultRoot: string;
   assetBase?: string;
+  resolveNoteHref?: (vaultRelativePath: string) => string | undefined;
 }
+
+const EXCLUDED_DIRECTORIES = new Set(['node_modules', 'build', 'dist', 'coverage']);
 
 interface IndexedNote {
   absolutePath: string;
@@ -35,29 +40,35 @@ export class VaultIndex {
     this.scan(options.vaultRoot);
   }
 
-  resolveSource(source: StoryMapSourceConfig): StoryMapConfig {
+  resolveSource(source: StoryMapSourceConfig, sourcePath?: string): StoryMapConfig {
+    const noteDisplay = source.noteDisplay;
     const explicitSlides = source.slides ?? [];
     const slides = explicitSlides.length > 0
-      ? this.resolveExplicitSlides(explicitSlides)
+      ? this.resolveExplicitSlides(explicitSlides, sourcePath, noteDisplay)
       : source.noteFolder
-        ? this.resolveFolder(source.noteFolder, source.dateField, source.order)
+        ? this.resolveFolder(source.noteFolder, source.dateField, source.order, noteDisplay)
         : [];
 
     return toStoryMapConfig(source, slides);
   }
 
-  resolveStory(story: StoryMapConfig): StoryMapConfig {
-    return { ...story, slides: this.resolveExplicitSlides(story.slides) };
+  resolveStory(story: StoryMapConfig, sourcePath?: string): StoryMapConfig {
+    return { ...story, slides: this.resolveExplicitSlides(story.slides, sourcePath, 'link') };
   }
 
-  private resolveExplicitSlides(slides: StorySlide[]): StorySlide[] {
-    return slides.map((slide) => this.resolveSlide(slide));
+  private resolveExplicitSlides(
+    slides: StorySlide[],
+    sourcePath: string | undefined,
+    noteDisplay: StoryNoteDisplay,
+  ): StorySlide[] {
+    return slides.map((slide) => this.resolveSlide(slide, sourcePath, noteDisplay));
   }
 
   private resolveFolder(
     noteFolder: string,
     dateField: string,
     order: StoryMapSourceConfig['order'],
+    noteDisplay: StoryNoteDisplay,
   ): StorySlide[] {
     const entries = this.notes
       .filter((note) => isPathInFolder(note.relativePath, noteFolder))
@@ -68,18 +79,25 @@ export class VaultIndex {
       }))
       .filter((entry) => entry.note.frontmatter['story-map-note'] === true);
 
-    return sortNoteDates(entries, order).map((entry) => this.slideForNote(entry.note));
+    return sortNoteDates(entries, order).map((entry) => this.slideForNote(entry.note, noteDisplay));
   }
 
-  private slideForNote(note: IndexedNote): StorySlide {
+  private slideForNote(note: IndexedNote, noteDisplay: StoryNoteDisplay): StorySlide {
     const slide: StorySlide = {
       ...slideFromNoteFrontmatter(note.frontmatter, path.basename(note.relativePath)),
     };
-    const media = slide.media ? this.resolveMedia(slide.media, note.absolutePath) : undefined;
-    return media ? { ...slide, media } : slide;
+    const media = slide.media
+      ? this.resolveMedia(slide.media, path.posix.dirname(note.relativePath))
+      : undefined;
+    const withMedia = media ? { ...slide, media } : slide;
+    return this.applyNoteDisplay(withMedia, note, noteDisplay);
   }
 
-  private resolveSlide(slide: StorySlide): StorySlide {
+  private resolveSlide(
+    slide: StorySlide,
+    sourcePath: string | undefined,
+    noteDisplay: StoryNoteDisplay,
+  ): StorySlide {
     let resolved: Partial<StorySlide> = {};
     let note: IndexedNote | undefined;
 
@@ -91,22 +109,50 @@ export class VaultIndex {
     }
 
     const merged = mergeResolvedSlide(slide, resolved);
-    const media = merged.media
-      ? this.resolveMedia(merged.media, slide.media ? undefined : note?.absolutePath)
-      : undefined;
-    return { ...merged, ...(media ? { media } : {}) };
+    const mediaBase = !slide.media && note
+      ? path.posix.dirname(note.relativePath)
+      : this.vaultRelativeDirectory(sourcePath);
+    const media = merged.media ? this.resolveMedia(merged.media, mediaBase) : undefined;
+    const withMedia = { ...merged, ...(media ? { media } : {}) };
+    return note ? this.applyNoteDisplay(withMedia, note, noteDisplay) : withMedia;
   }
 
-  private resolveMedia(media: StoryMedia, notePath?: string): StoryMedia {
-    if (/^(https?:|data:|blob:)/i.test(media.src) || !this.options.assetBase) return media;
+  private applyNoteDisplay(
+    slide: StorySlide,
+    note: IndexedNote,
+    noteDisplay: StoryNoteDisplay,
+  ): StorySlide {
+    if (noteDisplay === 'basic') return slide;
 
-    let source = parseWikiLinkRef(media.src);
-    if (source.startsWith('./') && notePath) {
-      source = path.relative(this.options.vaultRoot, path.resolve(path.dirname(notePath), source));
+    if (noteDisplay === 'link') {
+      const href = this.options.resolveNoteHref?.(note.relativePath);
+      return href ? { ...slide, notePath: href } : slide;
     }
 
-    const url = `${this.options.assetBase.replace(/\/$/, '')}/${source.replace(/^\/+/, '').replaceAll('\\', '/')}`;
+    const body = stripFrontmatter(readFileSync(note.absolutePath, 'utf8')).trim();
+    return body ? { ...slide, text: body } : slide;
+  }
+
+  private resolveMedia(media: StoryMedia, baseDirectory?: string): StoryMedia {
+    if (/^(https?:|data:|blob:)/i.test(media.src) || !this.options.assetBase) return media;
+
+    let source = parseWikiLinkRef(media.src).replace(/\\/g, '/');
+    if (source.startsWith('./') || source.startsWith('../')) {
+      if (!baseDirectory) return media;
+      source = path.posix.normalize(path.posix.join(baseDirectory, source));
+      if (source.startsWith('..')) return media;
+    }
+
+    const url = `${this.options.assetBase.replace(/\/$/, '')}/${source.replace(/^\/+/, '')}`;
     return { ...media, src: url };
+  }
+
+  private vaultRelativeDirectory(sourcePath?: string): string | undefined {
+    if (!sourcePath) return undefined;
+
+    const relative = path.relative(this.options.vaultRoot, sourcePath).replace(/\\/g, '/');
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return undefined;
+    return path.posix.dirname(relative);
   }
 
   private findIndexed(ref: string): IndexedNote | undefined {
@@ -127,7 +173,7 @@ export class VaultIndex {
     if (!existsSync(directory)) return;
 
     for (const entry of readdirSync(directory)) {
-      if (entry.startsWith('.')) continue;
+      if (entry.startsWith('.') || EXCLUDED_DIRECTORIES.has(entry)) continue;
       const full = path.join(directory, entry);
       const stat = statSync(full);
       if (stat.isDirectory()) {
