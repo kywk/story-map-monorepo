@@ -1,136 +1,251 @@
-# MVP Implementation Plan
+# MVP Implementation Plan — Docusaurus / Remark Milestone
 
-The repository is intentionally structured so most MVP work can happen in parallel without agents editing the same files.
+## 0. Milestone status
 
-## Phase 0 — bootstrap and contracts
+The base architecture, core parser, shared React renderer, and Obsidian file-backed MVP already exist.
 
-Status in this starter: scaffolded.
+Current priority:
 
-Deliverables:
+> Bring `remark-story-map` to practical semantic parity with the Obsidian adapter and integrate it cleanly with Docusaurus without duplicating route or rendering logic.
 
-- pnpm workspace;
-- shared TypeScript config;
-- package boundaries;
-- v1 schema/types;
-- build scripts;
-- architecture docs.
+Do not redesign the architecture. `SPEC.md` is authoritative.
 
-Exit criteria:
+## Phase 1 — Remark resolver parity
 
-- package manifests are internally consistent;
-- no platform API leaks into core/renderer.
+Primary ownership: `packages/remark-story-map/**`
 
-## Phase 1 — parallel package completion
+### 1.1 `noteDisplay` parity
 
-### Track A — `story-map-core`
+Implement and test:
 
-Complete and test:
+- `basic` — frontmatter-derived content only;
+- `link` — frontmatter-derived content plus resolved published `notePath`;
+- `full` — frontmatter-derived content plus frontmatter-stripped Markdown body.
 
-- YAML parsing;
-- Zod validation;
-- convenience normalization (`location`, media string, Leaflet-like root keys);
-- WikiLink reference parsing;
-- frontmatter location coercion.
+Use the existing Obsidian resolver semantics as the reference.
 
 Acceptance:
 
-- invalid coordinates fail clearly;
-- a normal v1 example parses;
-- a Leaflet-style compatibility example normalizes to canonical config.
+- discovered notes and explicit `slide.note` references behave consistently;
+- explicit slide properties still override note-derived values;
+- `full` does not leak frontmatter into slide text.
 
-### Track B — `react-story-map`
+### 1.2 Published-route resolver hook
 
-Complete:
+Add a small host-provided route resolver option.
 
-- dynamic Leaflet import;
-- map mount/destroy lifecycle;
-- tile layer;
-- slide markers;
-- optional path;
-- active slide `flyTo`;
-- previous/next and keyboard navigation;
-- text/media panel;
-- responsive styling.
+Required architectural behavior:
 
-Acceptance:
+```text
+Vault-relative note
+    -> host resolver
+    -> final published href
+    -> StorySlide.notePath
+```
 
-- no top-level runtime import of Leaflet;
-- React component works from a plain `StoryMapConfig`;
-- changing slide updates camera without recreating the map;
-- changing the whole story safely recreates Leaflet state.
-
-### Track C — `obsidian-story-map`
-
-Complete:
-
-- file-backed `TextFileView` registered as a dedicated full-leaf view;
-- `story-map: true` document detection and `story-map` fenced-block extraction;
-- `Open as Story Map` / `Open as Markdown` commands, file-menu action, and StoryMap pane menu action;
-- default-open of detected StoryMap documents in the StoryMap view, with per-file `Open as Markdown` opt-out;
-- `note` WikiLink resolver;
-- recursive `noteFolder` discovery filtered by `story-map-note: true`;
-- `dateField` + `order` chronological sorting for folder-generated slides;
-- frontmatter inheritance and local media URL conversion;
-- React root cleanup on view unload/switch;
-- Obsidian CSS bundle and full-height host.
+The package must not implement Docusaurus slug rules.
 
 Acceptance:
 
-- explicit slide properties override note frontmatter;
-- note frontmatter can provide title/location/description/cover;
-- explicit slides are never reordered or appended to by `noteFolder`;
-- switching between StoryMap and Markdown does not leak React roots or Leaflet maps.
+- one resolved note becomes a normal browser href;
+- unresolved/ambiguous host resolution produces a clear build-time error or clearly documented unresolved behavior;
+- no absolute local filesystem path is serialized into HTML.
 
-### Track D — `remark-story-map`
+### 1.3 Source-aware media resolution
 
-Complete:
+Update transform/resolver flow so the current StoryMap Markdown source path is available.
 
-- Remark fenced block transform;
-- optional Vault index;
-- note/frontmatter inheritance;
-- serialized host element;
-- browser client that mounts React StoryMaps;
-- documented Docusaurus configuration.
+Resolve:
+
+- note-derived relative media from the note path;
+- explicit slide relative media from the StoryMap document path;
+- absolute HTTP/data/blob URLs unchanged.
 
 Acceptance:
 
-- build-time code never initializes Leaflet;
-- no Vault path is exposed unnecessarily in generated HTML;
-- client can mount multiple StoryMaps on one page.
+- both relative cases have focused tests;
+- existing `assetBase` behavior remains compatible.
 
-## Phase 2 — integration
+### 1.4 Vault scan exclusions
 
-One integrator should perform this phase after Tracks A-D are stable.
+Prevent recursive scanning of obvious tooling/output directories:
 
-Tasks:
+- dot-directories;
+- `node_modules`;
+- `build`;
+- `dist`;
+- `coverage`.
 
-1. install workspace dependencies;
-2. run `pnpm typecheck`, `pnpm test`, `pnpm build`;
-3. fix cross-package type/export issues only;
-4. create a two-slide standalone smoke example if needed;
-5. test one Obsidian note reference end to end;
-6. test one Docusaurus transform/hydration end to end;
-7. update README only for commands that were actually verified.
+Do not add a generic ignore DSL.
 
-Do not use integration as an excuse to redesign package boundaries.
+Acceptance:
 
-## Phase 3 — MVP polish
+- tests prove excluded directories are not indexed;
+- nested content directories still work.
 
-Only after Phase 2 passes:
+## Phase 2 — Shared renderer link fallback
 
-- refine mobile layout;
-- improve error rendering for invalid YAML;
-- add loading/fallback UI;
-- improve dark-theme CSS tokens;
-- document asset mapping for the existing Obsidian-to-Docusaurus publishing workflow.
+Primary ownership: `packages/react-story-map/**`
 
-## Suggested backlog after v1
+Update slide-title behavior:
 
-Priority order if v1 is successful:
+- if `notePath` + callbacks exist: preserve current platform callback behavior;
+- if `notePath` exists without callbacks: render a normal anchor;
+- otherwise render a non-link title.
 
-1. `CRS.Simple` / image-map mode;
-2. touch swipe navigation;
-3. GeoJSON/GPX read-only overlays;
-4. optional scroll/scrollytelling mode;
-5. advanced marker compatibility;
-6. MapLibre renderer only if concrete vector/3D requirements appear.
+Acceptance:
+
+- Obsidian callback behavior remains unchanged;
+- Docusaurus can publish clickable note titles without importing router APIs into the renderer;
+- no Docusaurus dependency is added.
+
+## Phase 3 — Browser client lifecycle
+
+Primary ownership: `packages/remark-story-map/**`
+
+### 3.1 Mounting
+
+Keep:
+
+- multiple host support;
+- duplicate-mount protection;
+- UTF-8-safe config decoding;
+- client-only React mounting.
+
+### 3.2 Unmounting
+
+Add cleanup for removed StoryMap hosts during SPA navigation.
+
+Acceptance:
+
+- removing a host calls `root.unmount()`;
+- a later host with new DOM identity mounts normally;
+- repeated SPA navigation does not accumulate active roots.
+
+### 3.3 Lazy client loading
+
+Prefer loading StoryMap renderer/client-heavy dependencies only when a page contains a StoryMap host.
+
+This is a performance optimization, not a reason to redesign package exports. If bundler constraints make it disproportionately complex, keep current loading and record it as a non-blocking follow-up.
+
+## Phase 4 — Docusaurus theme bridge and example
+
+Primary ownership:
+
+- `packages/remark-story-map/**`
+- `examples/docusaurus/**`
+- `packages/react-story-map/**` only for generic semantic CSS variable cleanup
+
+Deliver:
+
+- a small Docusaurus CSS bridge from Infima variables to StoryMap semantic variables;
+- updated Docusaurus setup example;
+- client module registration example;
+- route resolver option example;
+- clear note that asset copying remains site-owned.
+
+Acceptance:
+
+- light and dark Docusaurus themes keep panel, text, border, buttons, and links readable;
+- no Infima/Docusaurus API import is introduced into `story-map-core`;
+- generic renderer remains usable outside Docusaurus.
+
+Dynamic dark/light tile provider switching is not required.
+
+## Phase 5 — Target-site integration check
+
+Reference site: `kywk/kywk.github.io`
+
+Do not copy old Leaflet/Kanban technical debt into StoryMap.
+
+Reuse:
+
+- existing multi-instance Docusaurus pattern;
+- existing `scripts/content-links.js`;
+- existing `remark-slug-normalizer` / `deriveSlug()` as URL authority;
+- existing site asset publishing pipeline.
+
+Do not add a second StoryMap-specific slug normalization implementation.
+
+Suggested integration behavior:
+
+```text
+story-map fenced block
+  -> remark-story-map
+  -> VaultIndex
+  -> host resolveNoteHref(...)
+  -> existing contentLinkIndex / published route
+  -> serialized StoryMapConfig
+  -> browser StoryMap client
+```
+
+First integrate docs instances. Blog support may use the same adapter when a real blog StoryMap use case exists; do not expand scope solely for symmetry.
+
+## Phase 6 — Tests and integration
+
+Required automated coverage:
+
+- fence transform;
+- explicit note inheritance;
+- explicit override;
+- ambiguous WikiLink;
+- recursive folder discovery;
+- asc/desc sorting;
+- missing dates last;
+- `noteDisplay` basic;
+- `noteDisplay` link;
+- `noteDisplay` full;
+- note-relative media;
+- source-document-relative media;
+- excluded scan directories;
+- browser normal-link fallback where practical;
+- browser mount/unmount lifecycle where practical.
+
+Run:
+
+```bash
+pnpm install
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Manual smoke checks:
+
+1. same StoryMap content renders in Obsidian and Docusaurus;
+2. previous/next and keyboard navigation work;
+3. map `flyTo` works without map recreation;
+4. note link navigates to published Docusaurus page;
+5. full note body renders as Markdown;
+6. dark/light Docusaurus theme is readable;
+7. SPA navigation away/back does not duplicate maps;
+8. multiple StoryMaps on one page remain independent.
+
+## Definition of done
+
+The milestone is complete when:
+
+- the full repo checks pass;
+- Obsidian behavior has no regression;
+- Remark note resolution semantics match the agreed v1 contract;
+- Docusaurus uses the common React renderer;
+- route resolution is delegated to the host;
+- Docusaurus SPA lifecycle is clean;
+- theme bridging is documented and working;
+- deferred features remain deferred.
+
+## Deferred backlog
+
+Keep outside this milestone:
+
+1. custom marker icons;
+2. marker popups;
+3. marker-click-to-slide behavior;
+4. touch swipe navigation;
+5. `CRS.Simple` / image maps;
+6. GeoJSON/GPX;
+7. scroll/scrollytelling;
+8. full-body WikiLink/embed conversion;
+9. automatic Vault asset copying;
+10. dynamic light/dark tile source switching;
+11. MapLibre.

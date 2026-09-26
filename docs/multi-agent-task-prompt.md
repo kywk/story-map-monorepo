@@ -1,110 +1,120 @@
-# Multi-Agent MVP Task Prompt
+# Multi-Agent Task Prompt — Docusaurus / Remark Milestone
 
-Use the following prompt with a coding orchestrator/Codex-style multi-agent workflow.
+Use this prompt with Codex or another coding orchestrator.
 
 ---
 
-You are implementing the first MVP of this repository.
+You are implementing the Docusaurus/Remark milestone of StoryMap.
 
-Read these files before changing code:
+Read, in order:
 
 1. `SPEC.md`
 2. `AGENTS.md`
 3. `docs/implementation-plan.md`
+4. `docs/handoff.md`
 
-The architecture is already decided. Do not redesign it. The goal is to finish a working MVP with minimal code and minimal dependencies.
+The architecture is already decided. Do not redesign it.
+
+The Obsidian MVP is the reference behavior. The goal is to make `remark-story-map` publish the same StoryMap content in Docusaurus with equivalent note resolution where platform differences permit.
 
 ## Global constraints
 
-- use pnpm workspace tooling already present;
+- use the existing pnpm workspace;
 - use TypeScript;
-- Leaflet is the only MVP map engine;
-- do not add React Leaflet, MapLibre, Redux, Zustand, Nx, Turborepo, visual editors, or scrollama;
+- Leaflet remains the only map engine;
+- do not add React Leaflet, MapLibre, Redux, Zustand, Nx, Turborepo, scrollama, or a plugin framework;
 - keep `story-map-core` framework/platform agnostic;
-- keep `react-story-map` unaware of Obsidian/Docusaurus;
-- adapters resolve platform data into `StoryMapConfig` before rendering;
-- maintain SSR-import safety: Leaflet must not be imported as a top-level runtime dependency from `react-story-map`;
-- prefer finishing tested MVP behavior over creating abstractions for future features.
+- keep `react-story-map` unaware of Obsidian/Docusaurus route systems;
+- filesystem and route resolution belong to the Remark adapter/host;
+- Docusaurus slug policy is host-owned;
+- build-time code must never initialize Leaflet;
+- prefer focused tests and minimal changes over future abstractions.
 
-## Parallel agents
-
-### Agent A — Core owner
-
-Ownership: `packages/story-map-core/**`
-
-Tasks:
-
-- review and complete schema/types/parser;
-- ensure `location: [lat,lng]`, string media, and Leaflet-compatible root keys normalize correctly;
-- implement/test WikiLink parsing and location coercion;
-- add focused Vitest tests;
-- do not edit other package directories.
-
-Return:
-
-- changed files;
-- test cases added;
-- any public API issue blocking another package.
-
-### Agent B — React renderer owner
-
-Ownership: `packages/react-story-map/**`
-
-Tasks:
-
-- finish `<StoryMap />` paged renderer;
-- dynamically import Leaflet inside browser effects;
-- initialize tile layer, markers, optional path;
-- implement `flyTo` on slide change without rebuilding the map;
-- implement previous/next, slide count, Left/Right keyboard navigation;
-- render Markdown and MVP media types;
-- verify cleanup and responsive CSS;
-- do not introduce platform-specific APIs.
-
-Assume the public core API defined in `SPEC.md`; coordinate only if an actual mismatch is found.
-
-### Agent C — Obsidian adapter owner
-
-Ownership: `packages/obsidian-story-map/**`
-
-Tasks:
-
-- finish the file-backed full-leaf `TextFileView` for `story-map: true` documents;
-- extract and parse the `story-map` fenced configuration;
-- expose `Open as Story Map` / `Open as Markdown`;
-- recursively scan `noteFolder` for `story-map-note: true` notes and sort by `dateField`/`order`;
-- resolve `slide.note` WikiLinks through Obsidian metadata APIs;
-- inherit frontmatter title/location/description/cover when slide values are absent;
-- convert local Vault media to resource URLs;
-- mount `react-story-map` and cleanly unmount when the view unloads;
-- make the package bundle to Obsidian `dist/main.js`, `dist/manifest.json`, `dist/styles.css`;
-- do not depend on the community Obsidian Leaflet plugin runtime.
-
-### Agent D — Remark/Docusaurus owner
-
-Ownership: `packages/remark-story-map/**`
-
-Tasks:
-
-- finish the fenced `story-map` Remark transform;
-- when `vaultRoot` is configured, resolve note frontmatter similarly to the Obsidian adapter;
-- serialize only normalized `StoryMapConfig` to the page;
-- finish the browser client entry that mounts every host using `react-story-map`;
-- keep build-time code free of Leaflet initialization;
-- add a concise Docusaurus configuration example in this package README or root README if assigned by integrator.
-
-## Integration agent
-
-Start only after A-D finish.
+## Workstream A — Remark resolver
 
 Ownership:
 
-- root config;
-- cross-package integration fixes;
-- README/docs corrections;
-- no feature expansion.
+```text
+packages/remark-story-map/**
+```
 
 Tasks:
+
+1. implement `noteDisplay: basic | link | full`;
+2. read stripped Markdown body for `full`;
+3. add a host route resolver hook for published note URLs;
+4. keep absolute filesystem paths out of serialized config;
+5. pass current source-document context into media resolution;
+6. resolve explicit relative media from the StoryMap source document;
+7. keep note-derived relative media note-relative;
+8. skip dot-directories, `node_modules`, `build`, `dist`, `coverage`;
+9. add focused tests for all above.
+
+Do not implement Docusaurus slug rules in this package.
+
+## Workstream B — React renderer
+
+Ownership:
+
+```text
+packages/react-story-map/**
+```
+
+Task:
+
+Change note-title behavior:
+
+```text
+notePath + callbacks -> callbacks
+notePath only        -> normal browser anchor
+no notePath          -> plain heading
+```
+
+Preserve Obsidian behavior.
+
+Do not import Docusaurus Router or other platform packages.
+
+## Workstream C — Browser client lifecycle
+
+Ownership:
+
+```text
+packages/remark-story-map/src/client.tsx
+```
+
+Tasks:
+
+- preserve multiple-host mounting;
+- preserve duplicate-mount protection;
+- unmount roots when host nodes leave the DOM during SPA navigation;
+- ensure a later/replaced host can mount normally;
+- keep Node APIs out of browser code;
+- if simple with the current bundler, lazy-load renderer-heavy code only when a host exists.
+
+Treat lazy loading as non-blocking if it materially complicates the package.
+
+## Workstream D — Docusaurus example/theme bridge
+
+Ownership:
+
+```text
+packages/remark-story-map/README.md
+examples/docusaurus/**
+```
+
+Tasks:
+
+- document `vaultRoot`;
+- document `assetBase`;
+- document the host route resolver option;
+- register browser client as a Docusaurus client module;
+- provide a minimal Infima-to-StoryMap CSS variable bridge;
+- document that asset copying remains site-owned;
+- do not add dynamic light/dark tile switching.
+
+## Integration
+
+After workstreams are complete:
 
 ```bash
 pnpm install
@@ -113,24 +123,63 @@ pnpm test
 pnpm build
 ```
 
-Then smoke-test:
+Then smoke-test the target integration pattern against `kywk/kywk.github.io`.
 
-1. parse the sample StoryMap;
-2. render it in standalone React;
-3. resolve one Obsidian WikiLink-backed slide;
-4. transform one fenced block with Remark;
-5. confirm browser hydration works after a Docusaurus-style static build.
+Important target-site rules:
 
-Fix only actual integration defects. Keep changes local and preserve package boundaries.
+- use the existing `scripts/content-links.js`;
+- use the existing `remark-slug-normalizer` / `deriveSlug()` route authority;
+- do not create StoryMap-specific slug normalization;
+- first integrate docs instances;
+- do not expand blog support only for symmetry.
 
-## Final report format
+## Required test matrix
 
-Provide:
+Cover:
 
-- MVP features confirmed working;
-- commands run and results;
-- remaining defects/blockers;
-- deferred items explicitly left for post-MVP;
-- no speculative future architecture unless needed to explain a blocker.
+- explicit note inheritance;
+- explicit slide override;
+- ambiguous WikiLink;
+- recursive `noteFolder`;
+- `story-map-note: true`;
+- asc/desc sorting;
+- undated notes last;
+- `noteDisplay: basic`;
+- `noteDisplay: link`;
+- `noteDisplay: full`;
+- route resolver;
+- frontmatter-stripped body;
+- note-relative media;
+- source-document-relative media;
+- scan exclusions;
+- browser normal-link fallback;
+- SPA host removal cleanup where practical.
+
+## Do not implement
+
+- custom marker icons;
+- marker popups;
+- marker-click-to-slide;
+- multiple `noteFolder`;
+- query/filter/group language;
+- GeoJSON/GPX;
+- CRS.Simple;
+- visual editor;
+- scroll mode;
+- MapLibre;
+- automatic Vault asset copying;
+- WikiLink/embed conversion in full note body;
+- dynamic dark/light tile providers.
+
+## Final report
+
+Return:
+
+- changed files by package;
+- tests added;
+- commands run and exit status;
+- target Docusaurus smoke-test result;
+- remaining blockers;
+- deliberately deferred work.
 
 ---

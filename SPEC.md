@@ -4,7 +4,7 @@
 
 Build a small, reusable StoryMap stack centered on one standard `StoryMapConfig` model.
 
-The first MVP must support:
+The MVP supports:
 
 1. standalone React usage;
 2. an Obsidian file-backed full-leaf StoryMap view;
@@ -12,7 +12,9 @@ The first MVP must support:
 4. Leaflet map navigation synchronized with paged story slides;
 5. note discovery from one configured Vault folder and all of its subfolders.
 
-The implementation should stay intentionally small. Do not add a visual editor, scroll-driven storytelling, MapLibre, 3D maps, GPX, GeoJSON editing, query languages, arbitrary filtering/grouping, or a plugin framework in v1.
+The Obsidian MVP is now the reference implementation for platform semantics. The current milestone is to bring the Remark/Docusaurus path to practical feature parity where platform behavior can reasonably match.
+
+The implementation must stay intentionally small. Do not add a visual editor, scroll-driven storytelling, MapLibre, 3D maps, GPX, GeoJSON editing, query languages, arbitrary filtering/grouping, or a generic plugin framework in v1.
 
 ## 2. Source document model
 
@@ -35,6 +37,7 @@ title: Chile Trip
 noteFolder: Travel/Chile/Places
 order: asc
 dateField: date-created
+noteDisplay: link
 
 map:
   center: [-33.4489, -70.6693]
@@ -43,7 +46,11 @@ map:
 ```
 ````
 
-For the Obsidian full-leaf view, the document-level StoryMap configuration is read from this fenced block. Multiple StoryMap configuration blocks in one StoryMap document are out of scope for v1.
+For the Obsidian full-leaf view, the document-level StoryMap configuration is read from this fenced block.
+
+For Docusaurus, the Remark plugin transforms the same fenced block at build time into a browser-safe serialized `StoryMapConfig` placeholder. The browser runtime mounts the shared React renderer after static rendering.
+
+Multiple StoryMap configuration blocks in one Obsidian StoryMap document are out of scope for v1. The Remark transformer may still mount multiple independent StoryMap hosts when multiple blocks occur on an ordinary Docusaurus page.
 
 ### 2.2 StoryMap note
 
@@ -73,6 +80,7 @@ Examples:
 
 - `noteFolder`
 - `dateField`
+- `noteDisplay`
 - `showPath`
 - `tileUrl`
 - `defaultZoom`
@@ -114,7 +122,9 @@ Docusaurus build --> remark-story-map -----/
 Standalone app ----------------------------/
 ```
 
-The Obsidian adapter renders `react-story-map` as a dedicated file-backed workspace view. Docusaurus/Remark renders the same StoryMap source as an embedded browser component.
+The Obsidian adapter renders `react-story-map` as a dedicated file-backed workspace view.
+
+Docusaurus/Remark resolves the same StoryMap source at build time, serializes only platform-neutral render data, and mounts the same renderer in the browser. Route resolution, filesystem access, Docusaurus URL policy, and platform-specific theme bridging remain outside `react-story-map`.
 
 ## 5. Package responsibilities
 
@@ -128,7 +138,9 @@ Owns:
 - `noteFolder`, `order`, `dateField`, and `noteDisplay` configuration types/defaults;
 - normalization of a small set of Obsidian Leaflet-compatible keys;
 - WikiLink reference parsing helpers;
-- location coercion helpers used by adapters.
+- frontmatter stripping;
+- location/media coercion helpers;
+- deterministic note date sorting.
 
 Must not import:
 
@@ -138,7 +150,7 @@ Must not import:
 - Docusaurus;
 - Node `fs` APIs.
 
-Folder scanning, file metadata access, and date extraction from real files belong to platform adapters.
+Folder scanning, file metadata access, published-route resolution, and real asset resolution belong to platform adapters.
 
 ### `react-story-map`
 
@@ -152,9 +164,12 @@ Owns:
 - image/video/iframe media;
 - Markdown text rendering;
 - resize handling, including Leaflet `invalidateSize()`;
-- minimal responsive CSS.
+- minimal responsive CSS;
+- generic note-title link rendering from an already-resolved `notePath`.
 
-Must not know what a Vault, WikiLink, frontmatter file, note folder, or Docusaurus route is.
+Must not know what a Vault, WikiLink, frontmatter file, note folder, Obsidian workspace, or Docusaurus route is.
+
+If `slide.notePath` exists and host callbacks are provided, callbacks may override navigation behavior. If `slide.notePath` exists and no host callback is provided, the renderer must render a normal browser link. This allows Obsidian to keep Page Preview/open-in-new-tab behavior while Docusaurus uses a normal published URL.
 
 ### `obsidian-story-map`
 
@@ -168,7 +183,7 @@ Owns:
 - recursively scanning configured `noteFolder`;
 - including only folder-discovered Markdown files with `story-map-note: true`;
 - reading the configured `dateField` from note frontmatter;
-- applying the configured `noteDisplay` mode (basics, title link, or full note body);
+- applying `noteDisplay: basic | link | full`;
 - providing a settings tab whose defaults fill keys a document omits;
 - refreshing open StoryMap views when default settings change;
 - applying `order: asc | desc` to automatically discovered notes;
@@ -178,7 +193,7 @@ Owns:
 - React mount/unmount lifecycle;
 - filling the complete Workspace leaf content area.
 
-The v1 implementation must not monkey-patch `WorkspaceLeaf` to force StoryMap view automatically when a Markdown file is opened.
+The Obsidian implementation is the behavioral reference for note discovery, precedence, and `noteDisplay` semantics, except where browser/Docusaurus navigation necessarily differs.
 
 ### `remark-story-map`
 
@@ -189,11 +204,18 @@ Owns:
 - recursively resolving `noteFolder` when a filesystem-backed Vault is available;
 - filtering folder-discovered notes by `story-map-note: true`;
 - applying the same `dateField` and `order` rules as the Obsidian adapter;
-- resolving note frontmatter to a normal `StoryMapConfig`;
-- serializing the config into a browser-safe HTML placeholder;
-- a client entry that hydrates placeholders with `<StoryMap />`.
+- applying equivalent `noteDisplay: basic | link | full` semantics;
+- resolving explicit `slide.note` WikiLinks;
+- resolving relative media using the referenced note or current StoryMap document as source context;
+- accepting a host-provided published-route resolver for `noteDisplay: link`;
+- serializing only normalized `StoryMapConfig` into a browser-safe HTML placeholder;
+- a browser client entry that mounts placeholders with `<StoryMap />`;
+- cleanly unmounting React roots when hosts are removed during SPA navigation;
+- keeping build-time and browser-time code separated.
 
-Remark does not render Leaflet at build time.
+Remark does not render or initialize Leaflet at build time.
+
+The package must not own Docusaurus slug policy. The host site supplies published note URLs. In the target `kywk.github.io` integration, `scripts/content-links.js` / `remark-slug-normalizer` remains the URL authority.
 
 ## 6. Story source configuration v1
 
@@ -236,7 +258,8 @@ When `slides` is present and non-empty:
 - slide sequence is exactly the configured `slides` sequence;
 - `noteFolder` does not append automatically discovered slides;
 - `order` and `dateField` do not reorder explicit slides;
-- explicit `slide.note` references are resolved normally.
+- explicit `slide.note` references are resolved normally;
+- explicit slide properties override note-derived properties.
 
 ### 6.2 Folder-generated slides
 
@@ -265,12 +288,15 @@ For deterministic behavior, notes with a missing or unparseable date are retaine
 `noteDisplay` selects how a resolved note is presented in the slide panel:
 
 - `basic` — frontmatter-derived basics only (`title`, `location`, `description`/`summary`, `cover`);
-- `link` — the same basics, but the slide title links to the source note; hovering shows the
-  Obsidian page preview and clicking opens the note in a new tab (default);
+- `link` — the same basics plus a resolved `slide.notePath`;
 - `full` — the same basics, with the note's Markdown body (frontmatter stripped) used as slide text.
 
-The renderer stays platform-agnostic: the Obsidian adapter resolves `link` into an opaque
-`slide.notePath` plus host callbacks, and resolves `full` into `slide.text`.
+Platform behavior for `link`:
+
+- Obsidian resolves `notePath` to an opaque Vault reference and supplies callbacks for Page Preview and open-in-new-tab;
+- Docusaurus resolves `notePath` to the final published route and uses a normal browser link.
+
+For `full`, both adapters use the frontmatter-stripped Markdown body. Rendering remains platform-neutral; Obsidian/Docusaurus-specific WikiLink or embed expansion inside the body is not required in v1.
 
 ### 6.4 Default precedence
 
@@ -280,10 +306,11 @@ In the Obsidian adapter, source configuration values resolve in this order:
 2. otherwise the plugin's default settings are used;
 3. otherwise built-in code defaults apply.
 
-The plugin settings screen exposes defaults for `order`, `dateField`, `noteDisplay`, and the
-`map` keys `zoom`, `minZoom`, `maxZoom`, `tileUrl`, `attribution`, and `showPath`. Values that
-vary per story — `schema`, `id`, `title`, `noteFolder`, `map.center`, `slides`, and `height` —
-are document-only (`height` is forced to `100%` in the Obsidian full-leaf host).
+The plugin settings screen exposes defaults for `order`, `dateField`, `noteDisplay`, and the map keys `zoom`, `minZoom`, `maxZoom`, `tileUrl`, `attribution`, and `showPath`.
+
+Values that vary per story — `schema`, `id`, `title`, `noteFolder`, `map.center`, `slides`, and `height` — are document-only. `height` is forced to `100%` in the Obsidian full-leaf host and remains meaningful in standalone/Docusaurus embedded hosts.
+
+Remark currently uses document values plus built-in defaults; it does not duplicate Obsidian plugin settings.
 
 ## 7. Canonical render model
 
@@ -309,8 +336,8 @@ interface StoryMapConfig {
 
 interface StorySlide {
   id?: string;
-  note?: string; // adapter input; renderer ignores unresolved references
-  notePath?: string; // adapter-resolved opaque source reference for link display
+  note?: string;     // adapter input; renderer ignores unresolved references
+  notePath?: string; // adapter-resolved opaque/published reference
   title?: string;
   text?: string;
   location?: {
@@ -324,6 +351,7 @@ interface StorySlide {
     alt?: string;
     caption?: string;
   };
+  mapmarker?: string;
 }
 ```
 
@@ -357,7 +385,7 @@ Compatibility rules:
 - `mapzoom` may be collected for compatibility but advanced marker visibility behavior is not required in MVP;
 - `description` or `summary` may provide slide text;
 - `cover`, `image`, or `media` may provide slide media;
-- with `noteDisplay: full`, the Markdown note body (frontmatter stripped) becomes slide text;
+- with `noteDisplay: full`, the Markdown note body becomes slide text after frontmatter removal;
 - otherwise the complete Markdown note body is not used as slide text.
 
 ## 9. Note resolution precedence
@@ -381,22 +409,110 @@ Required behavior:
 - commands/menu actions include `Open as Story Map` and `Open as Markdown`;
 - opening a detected `story-map: true` document shows it in the StoryMap view by default;
 - `Open as Markdown` opts that file out until `Open as Story Map` is invoked again;
-- `Open as Story Map` also appears in the StoryMap view's pane menu (`onPaneMenu`);
 - tab title follows the Markdown filename;
 - split panes and pop-out windows remain supported by normal Obsidian workspace behavior;
-- StoryMap height is forced to `100%` in the Obsidian full-leaf host;
-- source `height` remains meaningful to standalone/Docusaurus embedded hosts;
+- StoryMap height is forced to `100%`;
 - React and Leaflet instances are destroyed cleanly when the view unloads;
 - pane/container resize causes Leaflet size invalidation;
-- note `link` display registers a Page preview hover source, shows the page preview on title
-  hover, and opens the note in a new tab on title click;
-- plugin settings provide story-map defaults; document values win over settings, which win over
-  built-in defaults, and changing settings refreshes open views;
+- `noteDisplay: link` uses Page Preview on hover and opens the note in a new tab;
 - invalid frontmatter or StoryMap YAML produces an in-view error rather than breaking the workspace.
 
-Default-open behavior is limited to detected `story-map: true` documents and uses a scoped `WorkspaceLeaf.setViewState` wrapper (the same approach as the Kanban plugin) so a file is rewritten to the StoryMap view only when its frontmatter marks it as a StoryMap. Blanket interception of unrelated Markdown files remains out of scope.
+Default-open behavior is limited to detected `story-map: true` documents and uses a scoped `WorkspaceLeaf.setViewState` wrapper. Blanket interception of unrelated Markdown files remains out of scope.
 
-## 11. React API
+## 11. Docusaurus / Remark behavior
+
+The Docusaurus path is build-time adapter plus browser runtime.
+
+### 11.1 Build-time transform
+
+For every `story-map` fenced block:
+
+1. parse with `story-map-core`;
+2. if `vaultRoot` exists, resolve explicit notes or `noteFolder`;
+3. apply the same inheritance/order rules as Obsidian;
+4. apply `noteDisplay`;
+5. resolve local media into browser-facing URLs when possible;
+6. serialize only normalized `StoryMapConfig`;
+7. emit a `.story-map-host[data-story-map-config]` placeholder.
+
+No Leaflet map is created during Node/SSR build.
+
+### 11.2 Published note routes
+
+`remark-story-map` may accept a route resolver callback such as:
+
+```ts
+interface RemarkStoryMapOptions {
+  vaultRoot?: string;
+  assetBase?: string;
+  resolveNoteHref?: (vaultRelativePath: string) => string | undefined;
+}
+```
+
+The exact callback shape may be adjusted if implementation constraints require it, but the architectural rule is fixed:
+
+- StoryMap may ask the host to resolve a Vault-relative note;
+- StoryMap must not duplicate Docusaurus slug/permalink logic.
+
+For `kywk.github.io`, the existing content-link index / `deriveSlug()` pipeline is the source of truth.
+
+### 11.3 Source-relative media
+
+The transformer must have access to the current Markdown document path.
+
+Relative media is resolved against:
+
+- the referenced note when media came from note frontmatter;
+- the current StoryMap source document when media was explicitly authored on the slide.
+
+`assetBase` rewrites the resolved Vault-relative asset path to a browser URL. Automatic copying of Vault assets remains outside the package.
+
+### 11.4 Filesystem scanning
+
+`vaultRoot` may point at a repository that also contains Docusaurus tooling. Recursive indexing must avoid obvious non-content directories such as:
+
+- dot-directories;
+- `node_modules`;
+- `build`;
+- `dist`;
+- `coverage`.
+
+Do not introduce a generic glob/ignore subsystem in this milestone.
+
+### 11.5 Browser runtime and SPA lifecycle
+
+The browser entry:
+
+- mounts every StoryMap host found on the page;
+- does not double-mount an existing host;
+- works after Docusaurus SPA navigation;
+- unmounts React roots when their host nodes are removed;
+- keeps Node APIs out of the browser entry;
+- may lazy-load the renderer/client dependencies when a StoryMap host is actually present.
+
+Leaflet remains dynamically imported by `react-story-map`.
+
+### 11.6 Docusaurus theme bridge
+
+The generic renderer owns semantic StoryMap CSS variables.
+
+A Docusaurus host stylesheet maps Infima variables into StoryMap variables, for example:
+
+```css
+.story-map-host {
+  --story-map-bg: var(--ifm-background-surface-color);
+  --story-map-fg: var(--ifm-font-color-base);
+  --story-map-muted: var(--ifm-color-emphasis-700);
+  --story-map-border: var(--ifm-color-emphasis-300);
+  --story-map-accent: var(--ifm-color-primary);
+}
+```
+
+Do not hard-code Docusaurus/Infima variables inside the generic React package unless they are only optional fallbacks.
+
+Dynamic light/dark tile provider switching is not required in this milestone. The required result is readable, theme-compatible StoryMap chrome/panel content.
+
+## 12. React API
 
 ```tsx
 <StoryMap
@@ -415,35 +531,39 @@ MVP behavior:
 - all located slides display a small circle marker;
 - optional polyline connects located slides;
 - responsive resize handling;
+- normal `href` fallback for a resolved `slide.notePath` when platform callbacks are absent;
 - no scroll mode in MVP.
 
-## 12. MVP acceptance criteria
+## 13. MVP acceptance criteria
 
-The MVP is complete when all are true:
+The Docusaurus/Remark milestone is complete when all are true:
 
 - `pnpm typecheck`, `pnpm test`, and `pnpm build` succeed;
-- core parser tests cover `noteFolder`, `order`, `dateField`, and camelCase source configuration;
-- a React app can render a two-slide StoryMap without platform-specific APIs;
-- an Obsidian Markdown file with `story-map: true` and a `story-map` fenced block opens as a dedicated full-leaf StoryMap view;
-- the same file can switch back to Markdown view without changing source content;
+- existing Obsidian behavior and core parser behavior remain green;
+- Remark transforms the same `story-map` fence used by Obsidian;
+- explicit slides retain author order and override note frontmatter;
 - `noteFolder` recursively finds eligible `story-map-note: true` notes;
 - folder-generated notes sort by `dateField` using `order: asc | desc`;
-- default folder sorting uses `date-created` and ascending order;
-- explicit `slides` are never reordered or implicitly appended to by `noteFolder`;
-- a note may reuse Leaflet-compatible `location`, `mapmarker`, and `mapzoom` frontmatter;
-- an explicit Obsidian slide can use `note: "[[Some Note]]"` and inherit `location/title/description/cover`;
-- resizing an Obsidian pane keeps the Leaflet map correctly sized;
-- closing/reopening or switching views does not leak React roots or Leaflet maps;
-- Remark can transform the same `story-map` block and apply equivalent note-folder resolution when `vaultRoot` is configured;
-- Docusaurus browser runtime mounts `react-story-map` after static build without importing Leaflet during Node SSR;
-- local-platform concerns stay outside `react-story-map`.
+- default folder sorting uses `date-created` ascending;
+- `noteDisplay: basic` produces frontmatter-derived slide content only;
+- `noteDisplay: link` resolves a published note route through a host callback and renders a normal browser link;
+- `noteDisplay: full` uses the frontmatter-stripped Markdown note body;
+- note-relative and source-document-relative media resolve from the correct source context;
+- ambiguous WikiLink basename resolution fails clearly rather than choosing silently;
+- filesystem indexing does not recursively scan `node_modules`, build output, or equivalent obvious tool directories;
+- generated HTML does not expose unnecessary absolute Vault paths;
+- Docusaurus browser runtime mounts multiple StoryMaps on one page;
+- SPA navigation can add and remove StoryMap hosts without duplicate mounts or leaked React roots;
+- Leaflet is never initialized during Node/SSR build;
+- Docusaurus light/dark themes keep StoryMap UI readable through a host CSS bridge;
+- the target `kywk.github.io` integration reuses its existing route/slug resolver rather than implementing StoryMap-specific slug rules;
+- local-platform concerns stay outside `story-map-core` and `react-story-map`.
 
-## 13. Deferred work
+## 14. Deferred work
 
 Explicitly defer:
 
 - visual authoring/editor UI;
-- blanket `WorkspaceLeaf` interception of unrelated Markdown opens (a scoped `setViewState` wrapper is used only for detected `story-map: true` documents);
 - multiple `noteFolder` sources;
 - custom `sortBy`, secondary user-defined sort, grouping, filtering, or query syntax;
 - scrollama/scrollytelling mode;
@@ -452,6 +572,10 @@ Explicitly defer:
 - GeoJSON/GPX;
 - advanced marker icon compatibility;
 - Leaflet `mapzoom` visibility semantics;
-- WikiLink rendering inside story Markdown body;
+- marker popup parity with the older Docusaurus Leaflet plugin;
+- marker-click-to-slide navigation;
+- WikiLink/embed rendering inside `noteDisplay: full` Markdown body;
 - automated copying of every Vault asset into Docusaurus static output;
-- Markdown files outside the active Vault/filesystem `vaultRoot`.
+- dynamic Docusaurus light/dark tile provider switching;
+- a generic Docusaurus plugin framework or generic route abstraction;
+- Markdown files outside the configured filesystem `vaultRoot`.

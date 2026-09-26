@@ -2,107 +2,227 @@
 
 ## Objective
 
-Recreate the useful core of Knight Lab StoryMap with modern TypeScript/React while making it easy to use in three contexts:
+Build a reusable StoryMap stack that renders the same Obsidian-oriented Markdown in:
 
 - standalone React applications;
-- Obsidian Vault notes;
-- Docusaurus sites built from the same Obsidian-oriented Markdown content.
+- Obsidian;
+- Docusaurus.
 
-## Decisions reached
+The Obsidian MVP is now implemented. The next milestone is the Docusaurus/Remark adapter.
 
-### Leaflet is the MVP map engine
+## Architecture decisions
 
-The initial discussion considered MapLibre because of its camera, vector-tile, pitch, bearing, and 3D capabilities. After considering the existing workflow, Leaflet became the better default for v1 because:
+### Leaflet remains the MVP map engine
 
-- the Obsidian Vault already uses the community Obsidian Leaflet plugin;
-- an existing `remark-obsidian-leaflet` plugin already publishes compatible map content to Docusaurus;
-- the intended StoryMap features mainly need pan/zoom/flyTo, markers, paths, raster tiles, and mobile-friendly rendering;
-- keeping one map ecosystem reduces bundle, CSS, content-model, and maintenance duplication.
+Leaflet was selected because:
 
-MapLibre remains a possible later renderer if vector/3D requirements become real.
+- the existing Obsidian workflow already uses Leaflet-compatible metadata;
+- the required StoryMap interaction is pan/zoom/flyTo + markers/path;
+- there is no current vector/3D requirement;
+- one map ecosystem keeps the implementation small.
 
-### Reuse conventions, not the Obsidian Leaflet runtime
+MapLibre remains deferred.
 
-StoryMap should not depend on the community Obsidian Leaflet plugin at runtime. Instead it should reuse familiar content conventions where useful, such as:
+### Reuse content conventions, not platform runtimes
 
-- `location` frontmatter;
-- `lat` / `long`;
-- `defaultZoom`;
-- `tileServer`;
+StoryMap reuses useful Obsidian/Leaflet conventions such as:
+
+- `location`;
+- `mapmarker`;
+- `mapzoom`;
 - WikiLinks;
-- local attachments;
-- note-driven markers/content.
+- local media;
+- `defaultZoom` / `tileServer` compatibility.
 
-This keeps StoryMap independent while fitting the existing Vault.
+It does not depend on the community Obsidian Leaflet plugin runtime.
 
-### `react-story-map` is the reusable renderer
+### Common renderer
 
-`react-story-map` encapsulates:
+`react-story-map` owns the actual StoryMap UI and Leaflet lifecycle.
 
-- Leaflet map lifecycle;
-- paged StoryMap presentation;
-- previous/next navigation;
-- camera synchronization;
-- markers and route line;
-- media and Markdown text rendering.
-
-It can be imported by a normal React application without Obsidian or Docusaurus.
-
-### Platform plugins are resolvers/adapters
-
-Obsidian and Docusaurus/Remark collect platform-specific information first, then call the common renderer with normalized data.
+Platform adapters normalize their data into `StoryMapConfig` before rendering.
 
 ```text
-Vault-specific information
-        |
-        v
-Obsidian/Remark resolver
-        |
-        v
+Obsidian / Remark / standalone
+            |
+            v
+      StoryMapConfig
+            |
+            v
+      react-story-map
+```
+
+### Common pure core
+
+`story-map-core` owns schema, parsing, defaults, normalization, WikiLink helpers, note sorting, and other platform-neutral rules.
+
+It must not access filesystem, Obsidian, Docusaurus, React, or Leaflet APIs.
+
+## Source format decisions
+
+StoryMap document:
+
+```yaml
+---
+story-map: true
+---
+```
+
+with:
+
+````markdown
+```story-map
+noteFolder: Travel/Chile/Places
+order: asc
+dateField: date-created
+noteDisplay: link
+```
+````
+
+StoryMap discovered note:
+
+```yaml
+---
+story-map-note: true
+location: [-33.4489, -70.6693]
+date-created: 2026-01-15
+---
+```
+
+Configuration names use camelCase. Role flags remain kebab-case.
+
+## Ordering decisions
+
+Folder-generated slides use only:
+
+```text
+order: asc | desc
+dateField: <frontmatter field>
+```
+
+Defaults:
+
+```text
+order = asc
+dateField = date-created
+```
+
+No secondary configurable sorting/group/filter/query syntax is part of v1.
+
+Explicit slides preserve exact author order and suppress automatic `noteFolder` append.
+
+## Note display decisions
+
+```text
+basic -> frontmatter basics only
+link  -> basics + platform-resolved notePath
+full  -> basics + frontmatter-stripped note body
+```
+
+Obsidian `link` behavior:
+
+- Page Preview on hover;
+- open note in new tab.
+
+Docusaurus `link` behavior:
+
+- host resolves final published URL;
+- renderer uses normal browser anchor.
+
+## Current implementation status
+
+### Completed baseline
+
+- `story-map-core` parser/schema/helpers;
+- `react-story-map` Leaflet renderer;
+- Obsidian file-backed full-leaf StoryMap view;
+- recursive `noteFolder`;
+- date sorting;
+- explicit note inheritance;
+- Obsidian `noteDisplay` basic/link/full;
+- Obsidian settings defaults;
+- initial Remark fence transform;
+- Remark Vault index;
+- Remark explicit-note and folder discovery;
+- Remark browser host mounting.
+
+### Docusaurus/Remark gaps
+
+Current milestone fills:
+
+- Remark `noteDisplay` parity;
+- host-owned published-route resolver;
+- source-relative explicit media;
+- scan exclusions for `node_modules`/build output;
+- normal browser `notePath` fallback;
+- React-root cleanup when SPA hosts are removed;
+- Docusaurus/Infima theme bridge;
+- optional lazy client loading.
+
+## Docusaurus integration decision
+
+The target `kywk.github.io` site already has established route handling:
+
+```text
+scripts/content-links.js
+remark-slug-normalizer
+deriveSlug()
+createContentLinkIndex()
+```
+
+StoryMap must reuse that route authority rather than create its own slug rules.
+
+The intended flow is:
+
+```text
+story-map fence
+    |
+    v
+remark-story-map
+    |
+    v
+Vault note resolution
+    |
+    v
+host resolveNoteHref(...)
+    |
+    v
+existing published-content index
+    |
+    v
 StoryMapConfig
-        |
-        v
+    |
+    v
 react-story-map
 ```
 
-`react-story-map` must not receive `app.vault`, Obsidian `TFile`, remark AST nodes, or Docusaurus APIs.
+## Existing Docusaurus plugins used as references
 
-### A small pure core is still useful
+Reference implementations:
 
-A separate `story-map-core` package holds schema, parser, TypeScript types, and small normalization helpers. It is not intended to become a complex domain framework.
+- `remark-obsidian-leaflet`;
+- `remark-obsidian-kanban`.
 
-## Existing publishing context
+Useful patterns:
 
-The existing Docusaurus remark plugin already demonstrates the desired publishing pattern:
+- build-time Markdown transformation;
+- browser-only interactivity;
+- SPA navigation awareness;
+- multi-instance Docusaurus configuration;
+- theme integration.
 
-```text
-Obsidian fenced block
-  -> remark build-time transform
-  -> serialized browser configuration
-  -> client-side interactive map
-```
+Do not copy their route-normalization duplication or renderer-in-Remark technical debt.
 
-The StoryMap package follows the same shape, but standardizes the final configuration around `StoryMapConfig` and delegates interactive rendering to `react-story-map`.
+## Deferred
 
-## MVP scope
-
-Include:
-
-- paged slides;
-- Leaflet `flyTo`;
-- markers and path line;
-- text, image, video, iframe;
-- YAML fenced block;
-- note/frontmatter inheritance;
-- Obsidian WikiLink and attachment resolution;
-- Remark build-time note resolution;
-- client-side Docusaurus hydration.
-
-Defer:
-
-- scroll mode;
 - visual editor;
+- scroll mode;
 - MapLibre;
-- advanced GIS layers;
-- gigapixel/image maps;
-- comprehensive compatibility with every Obsidian Leaflet option.
+- custom marker icons;
+- marker popups;
+- advanced `mapzoom` semantics;
+- GeoJSON/GPX;
+- CRS.Simple/gigapixel mode;
+- automatic Vault asset copying;
+- WikiLink/embed conversion inside full Markdown body;
+- dynamic light/dark tile source switching.

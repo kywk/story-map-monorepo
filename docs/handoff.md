@@ -1,179 +1,461 @@
-# Handoff — Obsidian Plugin 本地功能驗證與調整
+# Handoff — Docusaurus / Remark Plugin MVP
 
-> **注意（milestone 已更新）**：本檔描述的是先前的 `registerMarkdownCodeBlockProcessor('storymap', ...)`
-> 做法。目前契約以 `SPEC.md` 為準：StoryMap 文件改為 `story-map: true` frontmatter +
-> `story-map` fenced block，Obsidian 端為 file-backed full-leaf `TextFileView`，並支援
-> `noteFolder` 遞迴探索（`story-map-note: true`）、`order` / `dateField` 排序與
-> `Open as Story Map` / `Open as Markdown` 指令。本檔僅保留為 Vault 驗證的歷史筆記。
+> Current milestone handoff. Read `SPEC.md`, `AGENTS.md`, and `docs/implementation-plan.md` before changing code.
 
-> 給下一個 agent。先讀本檔，再讀 `SPEC.md` §7、`docs/implementation-plan.md` Track C、`AGENTS.md`。
+## 0. Task in one sentence
 
-## 0. 任務一句話
+Finish `packages/remark-story-map` so the same StoryMap Markdown used by the completed Obsidian MVP publishes in Docusaurus with equivalent note discovery, ordering, inheritance, `noteDisplay` behavior, correct published links/media, clean SPA lifecycle, and the shared `react-story-map` renderer.
 
-在真實 Vault `~/Work/obs-story-map`（kywk.me）中，把 `packages/obsidian-story-map` 這個社群外掛做**本地功能驗證**，只修實際發現的缺陷，不擴充功能、不改架構。
+## 1. Repository baseline
 
-## 1. 目前狀態（已可開工）
+Repository:
 
-- Monorepo：`/home/kywk/Work/story-map-monorepo`，branch `main`，remote `origin` = `https://github.com/kywk/story-map-monorepo`（public）。
-- 最新 commit：`204a0ef docs: add npm publishConfig and RELEASING runbook`。
-- npm 已首發（0.1.0）：
-  - `@story-map/story-map-core`
-  - `@story-map/react-story-map`
-  - `@story-map/remark-story-map`
-- `pnpm typecheck` / `pnpm test` / `pnpm build` 全綠。core 19 tests、remark 6 tests。
-- 獨立 React 範例已驗證可用：`examples/react`（`pnpm --filter @story-map/example-react dev`，http://127.0.0.1:5173/）。
-- **尚未執行**：`v0.1.0` git tag / GitHub Release、Obsidian plugin release、Docusaurus 端整合。
-- `packages/obsidian-story-map/dist/` 已是最新 build，但驗證前請重跑建置。
+```text
+https://github.com/kywk/story-map-monorepo
+```
 
-## 2. 目標環境（Vault）
+Baseline analyzed:
 
-- 路徑：`/home/kywk/Work/obs-story-map`（`~/Work/obs-story-map`）；本身是 git repo，也是 Docusaurus 網站原始碼。
-- **先讀** `~/Work/obs-story-map/AGENTS.md` 與 `docs/agents/tooling.md`；該 repo 要求繁中回覆、內容不可公開外洩、不得讀取私人目錄。
-- 既有外掛（`.obsidian/plugins/`）：`obsidian-leaflet-plugin`、`obsidian42-brat`、`dataview`、`templater-obsidian` 等；**沒有** `story-map`。
-- 已啟用列表：`.obsidian/plugins/community-plugins.json`（該檔被 git 忽略）。加入新外掛後需在 Obsidian 開啟。
-- Docusaurus 端慣例：`plugins/remark-obsidian-leaflet/`（`leaflet` code block、`lat`/`long`/`defaultZoom`/`markerFolder`）。
-- 標記檔慣例（可作為 `note:` 測試目標）：例如
-  `backpacker/2509 Chile/Chile/托巴拉巴都市市場 Mercado Urbano Tobalaba.md`
-  有 frontmatter `title`、`location: [-33.4167, -70.6]`、`mapmarker: restaurant`。
-- 目前 vault 內**沒有任何 `storymap` code block**（已 grep 確認），需要自建測試筆記。
-- 測試筆記請放在 **git-ignored** 目錄，例如 `_incoming/`（已在 `.gitignore`），避免污染公開網站內容；`assets/` 亦被忽略可放測試圖。離開前用
-  `git -C ~/Work/obs-story-map status --short` 確認沒有不該追蹤的檔案。
+```text
+main
+8bfd4238d4cf599403bda724fb4b81640df29c1e
+Merge branch 'feat/obsidian-plugin'
+```
 
-## 3. Plugin 架構與現有行為
+Packages:
 
-擁有者邊界：`packages/obsidian-story-map/**`。程式碼：
+```text
+packages/story-map-core
+packages/react-story-map
+packages/obsidian-story-map
+packages/remark-story-map
+```
 
-- `src/main.tsx`（36 行）
-  - `registerMarkdownCodeBlockProcessor('storymap', ...)`。
-  - 流程：`parseStoryMapYaml(source)` → `resolveObsidianStory(app, parsed, ctx.sourcePath)` → `createRoot(el).render(<StoryMap story={story} />)` → `ctx.addChild(new StoryMapRenderChild(el, root))`。
-  - `StoryMapRenderChild.onunload()` 呼叫 `root.unmount()`（生命週期清理唯一入口）。
-  - 解析/解析失敗：`el.addClass('story-map-host--error')` + `el.setText(...)`。
-- `src/resolver.ts`（66 行）——核心邏輯，只做資料正規化，不碰 DOM：
-  - `resolveObsidianStory`：對每個 slide 做 `resolveSlide`（`Promise.all`）。
-  - `slide.note` → `app.metadataCache.getFirstLinkpathDest(parseWikiLinkRef(note), sourcePath)`。
-  - frontmatter 繼承：`title`（fallback 檔名）、`description`/`summary` → `text`、`location`（含 `zoom`/`defaultZoom`）、`cover`/`image`/`media` → `media`、`mapmarker`（僅收集，未使用）。
-  - `mergeResolvedSlide(slide, resolved)`：**顯式 slide 值優先於 note frontmatter**（core 提供）。
-  - media URL 轉換 `resolveMedia`：`https:`/`data:`/`app:`/`blob:` 直接沿用；其餘用 `getFirstLinkpathDest` + `app.vault.getResourcePath`。**繼承的 cover 以 note 檔案為相對基準**（`resolver.ts:49`；這是先前修過的 bug，請重點驗證）。
-- `src/obsidian.css`：`@import "leaflet/dist/leaflet.css"` + `@import "@story-map/react-story-map/styles.css"` + `.story-map-host--error` 樣式。
-- `esbuild.config.mjs`：bundle `src/main.tsx` → `dist/main.js`（CJS、`obsidian` external）；`src/obsidian.css` → `dist/styles.css`；複製 `manifest.json`、`versions.json`。
-- `manifest.json`：`id: story-map`、`minAppVersion: 1.8.0`、`isDesktopOnly: false`。
-- `versions.json`：`{ "0.1.0": "1.8.0" }`。
-- 渲染器為 `@story-map/react-story-map`（bundle 進來，leaflet 動態 import），**不得**依賴社群 `obsidian-leaflet-plugin` 的 runtime。
+The Obsidian MVP is complete enough to act as the platform semantics reference.
 
-## 4. 建置與安裝流程
+Current Remark implementation already has real functionality; do not replace it with a new architecture.
+
+## 2. Current implementation
+
+### `story-map-core`
+
+Already provides:
+
+- `StoryMapSourceConfig` / `StoryMapConfig`;
+- YAML + Zod parsing;
+- source defaults;
+- `noteFolder`, `order`, `dateField`, `noteDisplay`;
+- WikiLink parsing;
+- location/media coercion;
+- frontmatter-to-slide helpers;
+- date sorting;
+- frontmatter stripping;
+- explicit-slide-over-note merge behavior.
+
+Do not move filesystem or Docusaurus behavior into core.
+
+### `react-story-map`
+
+Already provides:
+
+- Leaflet dynamic import;
+- map lifecycle;
+- tile layer;
+- circle markers;
+- optional route polyline;
+- active slide `flyTo`;
+- previous/next;
+- keyboard navigation;
+- slide count;
+- Markdown/GFM text;
+- image/video/iframe;
+- resize observer / `invalidateSize`;
+- note click/hover callbacks;
+- responsive CSS.
+
+Required cross-package change for this milestone:
+
+> when `slide.notePath` exists and no platform callback is supplied, render a normal browser anchor.
+
+Do not import Docusaurus Router or other host APIs.
+
+### `obsidian-story-map`
+
+Existing reference behavior:
+
+- `story-map: true` document detection;
+- `story-map` fenced config;
+- file-backed full-leaf view;
+- default-open StoryMap view;
+- Open as Markdown / Open as Story Map;
+- recursive `noteFolder`;
+- `story-map-note: true` filter;
+- `dateField` + asc/desc;
+- explicit slides preserve author order;
+- note frontmatter inheritance;
+- note-relative media;
+- `noteDisplay: basic | link | full`;
+- Page Preview/open-tab behavior for `link`;
+- settings precedence;
+- React/Leaflet lifecycle cleanup.
+
+Do not modify this package unless a shared change exposes a real regression.
+
+### `remark-story-map`
+
+Current files:
+
+```text
+src/index.ts
+src/vault.ts
+src/client.tsx
+src/index.test.ts
+README.md
+```
+
+Current behavior includes:
+
+- finds `story-map` code fences;
+- parses via `story-map-core`;
+- optional `vaultRoot`;
+- indexes Markdown files;
+- resolves exact Vault-relative path and basename WikiLinks;
+- rejects ambiguous basename WikiLinks;
+- resolves explicit note frontmatter;
+- recursive `noteFolder`;
+- filters `story-map-note: true`;
+- asc/desc date sorting;
+- explicit slides suppress automatic folder append;
+- `assetBase` rewriting;
+- note-relative frontmatter media;
+- serializes `StoryMapConfig` via encoded data attribute;
+- browser mounts multiple hosts;
+- duplicate-mount protection with `WeakMap`;
+- MutationObserver rescans after DOM changes;
+- Leaflet is not initialized during build.
+
+## 3. Known gaps to implement
+
+### P0 — `noteDisplay` parity
+
+`StoryMapSourceConfig.noteDisplay` is parsed but current `VaultIndex` does not apply it.
+
+Implement:
+
+```text
+basic -> frontmatter basics only
+link  -> basics + published notePath
+full  -> basics + stripped Markdown body
+```
+
+Use the Obsidian resolver as the semantic reference.
+
+### P0 — published Docusaurus route
+
+`remark-story-map` must not calculate Docusaurus slugs itself.
+
+Add a small host callback option that can turn a Vault-relative note path into its published URL.
+
+Example conceptual API:
+
+```ts
+resolveNoteHref?: (vaultRelativePath: string) => string | undefined
+```
+
+Exact naming/signature can change if a better minimal shape is required.
+
+The serialized `StoryMapConfig` should contain the final browser-facing link, not an absolute local filesystem path.
+
+### P0 — source-relative explicit media
+
+Current note-relative media works because the note path is known.
+
+Explicit slide media such as:
+
+```yaml
+slides:
+  - title: Example
+    media: ./images/example.jpg
+```
+
+must resolve relative to the StoryMap Markdown source file.
+
+Use the Remark `VFile` / source path to provide that context.
+
+### P0 — filesystem scan exclusions
+
+If `vaultRoot` points at the whole Docusaurus repository, current recursion can enter `node_modules` and build output.
+
+Skip at least:
+
+```text
+.*
+node_modules
+build
+dist
+coverage
+```
+
+No generic ignore/glob subsystem.
+
+### P1 — normal browser link fallback
+
+Current renderer only makes a note title interactive when click/hover callbacks are supplied.
+
+Change behavior:
+
+```text
+notePath + callback -> current callback behavior
+notePath only       -> normal <a href>
+no notePath         -> plain title
+```
+
+### P1 — SPA removal cleanup
+
+Current browser client detects/mounts new hosts but does not unmount roots for removed hosts.
+
+On Docusaurus SPA navigation:
+
+```text
+host removed -> root.unmount() -> forget host
+```
+
+Keep duplicate-mount protection.
+
+### P1 — Docusaurus theme bridge
+
+Generic renderer already uses semantic `--story-map-*` variables.
+
+Provide a small Docusaurus/Infima bridge rather than embedding Docusaurus variables throughout the renderer.
+
+Target site has custom light/dark theme, so verify both.
+
+### P2 — lazy browser loading
+
+Prefer not loading renderer-heavy code until StoryMap hosts exist.
+
+This is not blocking if bundler constraints make it disproportionately complex.
+
+## 4. Target Docusaurus reference
+
+Reference repository:
+
+```text
+https://github.com/kywk/kywk.github.io
+```
+
+Relevant existing plugins:
+
+```text
+plugins/remark-obsidian-leaflet
+plugins/remark-obsidian-kanban
+```
+
+Useful patterns to keep:
+
+- build-time Markdown transform;
+- browser-only interactive initialization;
+- multi-doc-instance integration;
+- SPA navigation awareness;
+- theme integration.
+
+Technical debt not to copy:
+
+- custom duplicate slug rules;
+- renderer HTML assembled inside Remark;
+- large inline style blocks;
+- global Leaflet runtime;
+- route derivation by lowercasing filenames.
+
+## 5. Target-site route authority
+
+`kywk.github.io` already has:
+
+```text
+scripts/content-links.js
+plugins/remark-slug-normalizer
+deriveSlug()
+createContentLinkIndex()
+```
+
+This existing system is the published route authority.
+
+StoryMap integration should look like:
+
+```text
+Vault-relative note path
+       |
+       v
+remark-story-map host callback
+       |
+       v
+contentLinkIndex
+       |
+       v
+published Docusaurus route
+       |
+       v
+StorySlide.notePath
+```
+
+Do not implement a separate StoryMap slug normalizer.
+
+## 6. Theme integration
+
+Target site uses Docusaurus/Infima variables and a custom warm theme.
+
+Expected bridge is conceptually:
+
+```css
+.story-map-host {
+  --story-map-bg: var(--ifm-background-surface-color);
+  --story-map-fg: var(--ifm-font-color-base);
+  --story-map-muted: var(--ifm-color-emphasis-700);
+  --story-map-border: var(--ifm-color-emphasis-300);
+  --story-map-accent: var(--ifm-color-primary);
+}
+```
+
+Dynamic light/dark tile URL switching is deferred. Only StoryMap UI readability must match the active Docusaurus theme.
+
+## 7. Test-first work list
+
+Add/extend tests for:
+
+1. `noteDisplay: basic`;
+2. `noteDisplay: link`;
+3. `noteDisplay: full`;
+4. host route resolver;
+5. full body strips frontmatter;
+6. note-relative media;
+7. explicit source-relative media;
+8. recursive folder discovery;
+9. asc/desc sorting;
+10. undated notes last;
+11. explicit slides not appended/reordered;
+12. excluded `node_modules/build/dist/coverage`;
+13. ambiguous basename error;
+14. normal browser `notePath` fallback where practical;
+15. SPA host unmount where practical.
+
+Existing tests must remain green.
+
+## 8. Recommended implementation order
+
+### Step 1
+
+Update `VaultIndex` data model so indexed notes can provide:
+
+- relative path;
+- absolute path;
+- frontmatter;
+- body when required.
+
+Avoid eagerly parsing more data than needed unless the simpler implementation is clearly preferable.
+
+### Step 2
+
+Implement one shared Remark-side note-display helper equivalent to Obsidian `applyNoteDisplay()`.
+
+### Step 3
+
+Add host route resolver support and populate final browser `notePath`.
+
+### Step 4
+
+Pass StoryMap source path from Remark transform into resolver for explicit media.
+
+### Step 5
+
+Add scan exclusions.
+
+### Step 6
+
+Update renderer normal-link fallback.
+
+### Step 7
+
+Update browser client removal cleanup.
+
+### Step 8
+
+Update README/example Docusaurus configuration and theme bridge.
+
+### Step 9
+
+Run full repo tests/build.
+
+### Step 10
+
+Smoke-test against `kywk.github.io` without adding alternate route logic.
+
+## 9. Required commands
 
 ```bash
-# 1) monorepo 建置（改過 core/react 一定要先重建）
-cd /home/kywk/Work/story-map-monorepo
 pnpm install
-pnpm --filter @story-map/story-map-core build
-pnpm --filter @story-map/react-story-map build
-pnpm --filter @story-map/obsidian-story-map build
-# 或：pnpm build（會連 example 一起 build）
-
-# 2) 複製產物到 vault（複製，不要 symlink；vault .gitignore 會忽略 plugins/*/*）
-VAULT=~/Work/obs-story-map
-mkdir -p "$VAULT/.obsidian/plugins/story-map"
-cp packages/obsidian-story-map/dist/{main.js,manifest.json,styles.css,versions.json} \
-   "$VAULT/.obsidian/plugins/story-map/"
-
-# 3) 開啟 Obsidian → Settings → Community plugins → 啟用「Story Map」
-#    或在 .obsidian/plugins/community-plugins.json 加入 "story-map" 後重啟
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
-注意：
-
-- `pnpm dev:obsidian`（root script）會 build core + react 再跑 obsidian `dev`，但 **`esbuild.config.mjs` 用 `esbuild.build` 而非 `context().watch()`，所以 `dev` 其實是一次性 build，不會 watch**。若驗證需要快速迭代，可考慮改成 watch（見 §6-1）。
-- 每次改 plugin 後要重新 build + 重新複製，並在 Obsidian 重新載入（用 BRAT/Hot Reload 外掛，或關閉再啟用外掛、重開筆記）。
-- 測試筆記建議內容（放在 `_incoming/storymap-test.md`）：
-
-  ````markdown
-  ```storymap
-  title: 智利測試
-  map:
-    center: [-33, -70]
-    zoom: 5
-    showPath: true
-  slides:
-    - note: "[[托巴拉巴都市市場 Mercado Urbano Tobalaba]]"
-    - note: "[[巴塔哥尼亞 Patagonia]]"
-  ```
-  ````
-
-## 5. 驗證清單（acceptance）
-
-逐項記錄結果（含截圖/console 錯誤），不通過才修：
-
-- [ ] Reading View 能渲染 `storymap` block：地圖、面板、標題、計數、上一站/下一站。
-- [ ] `note: "[[Some Note]]"` 繼承 `title`、`location`、`description`、`cover`。
-- [ ] 顯式 slide 屬性覆蓋 note frontmatter（例如同時給 `title`）。
-- [ ] `[[note|alias]]`、`[[note#heading]]` 可解析。
-- [ ] 本地 Vault media（cover、`media:`）轉成 resource URL；**繼承自 note 的 `./` 相對 cover 以 note 為基準**。
-- [ ] 遠端圖片（`https:`，本 vault 多為 Google Photos）可正常顯示。
-- [ ] 關閉筆記 / 停用外掛 / 切換檔案後，React root 與 Leaflet 實例有被清掉（無殘留地圖、無 console error、重開不重複掛載）。
-- [ ] 一頁多個 `storymap` block 互不干擾。
-- [ ] 無效 YAML / 找不到 note → 顯示 `.story-map-host--error`，不 crash。
-- [ ] 鍵盤 ←/→ 切換；地圖 `flyTo` 且**不重建地圖**。
-- [ ] 深色主題對比、行動裝置（`isDesktopOnly: false`）觸控可用。
-- [ ] 切換 slide 時媒體/文字正確更新。
-
-## 6. 已知問題 / 建議調整（依優先序，只修實際重現者）
-
-1. **`dev` 不是 watch**：`esbuild.config.mjs` 用 `esbuild.build`。若要 watch，改用
-   `esbuild.context({...}).then(ctx => ctx.watch())`，並讓 `dev` 不呼叫 `process.exit`。
-2. **`mapmarker` 未使用**：`resolver.ts:43` 只收集。SPEC 允許 MVP 忽略；若要調整 marker 樣式（circle 半徑/顏色）再處理，否則不要動。
-3. **`resolveObsidianStory` 無取消機制**：`main.tsx:22` 為 async；快速切換筆記時，晚到的 promise 可能在 `MarkdownRenderChild.onunload` 之後才 render。重現的話加 `cancelled` 旗標或檢查 `el.isConnected`。
-4. **錯誤渲染**：`main.tsx:27` 用 `el.addClass` + `el.setText`；成功時未加 host class。若 Obsidian 的 DOM 擴充在型別/執行上有問題，改用原生 `el.classList.add` / `el.textContent`。
-5. **note body 未載入**：只沿用 frontmatter `description`/`summary`。SPEC 最低要求即此，勿自作主張讀整篇 body。
-6. **相對路徑覆蓋**：`resolveMedia` 一般用 `getFirstLinkpathDest`；`./` 相對在 Obsidian 的解析行為請用真實檔案驗證（`resolver.ts:49` 的 note-relative 是重點）。若 `./` 解析不到，改成 `app.vault.getAbstractFileByPath(normalizePath(dirname(notePath) + '/' + src))`。
-7. **重複 basename**：`getFirstLinkpathDest` 取最短路徑，vault 若有同名檔需確認命中正確。
-8. **CSS/圖磚深色對比**：`obsidian.css` 未覆寫 token，靠 renderer CSS 的 Obsidian 變數 fallback；截圖檢查可讀性。
-9. **建議新增 resolver 單元測試**：`resolver.ts` 只 import `type`，執行期不載入 `obsidian`。可用假 `App`（`metadataCache.getFileCache`/`getFirstLinkpathDest`、`vault.getResourcePath`）做 vitest，測「顯式覆蓋」「note-relative media」「`[[alias]]`」。需在 `packages/obsidian-story-map/package.json` 加 `"test": "vitest run"` 並在 tsconfig `exclude` 測試檔。
-
-## 7. 邊界與守則
-
-- 只改 `packages/obsidian-story-map/**`（必要時 `packages/story-map-core/**` 的 helper，但需同步測試）。
-- 不得讓 `react-story-map` / `story-map-core` 匯入 Obsidian 或 Node API。
-- plugin 不得 import Node `fs`；不得依賴社群 `obsidian-leaflet-plugin` runtime。
-- 不改 vault 公開內容、不 commit vault 測試檔；測試檔放 git-ignored 目錄。
-- 不改 monorepo 的 npm 發佈設定與 example（除非是驗證副產品且範圍明確）。
-- 依 `AGENTS.md`：先跑 `pnpm typecheck && pnpm test && pnpm build`，再回報。
-
-## 8. 不在範圍 / deferred
-
-- 視覺編輯器、scroll/scrollytelling、MapLibre、`CRS.Simple`、GeoJSON/GPX、進階 marker icon、story Markdown body 內 WikiLink 渲染、Vault 資產自動複製到 Docusaurus。
-- npm 版號 bump / GitHub Release / CI（見 `RELEASING.md`，尚未執行）。
-- Docusaurus/Remark 端整合（另一個 agent 的工作；npm 套件已可用）。
-
-## 9. 指令速查與參考
+Focused commands during development:
 
 ```bash
-# monorepo 驗證
-cd /home/kywk/Work/story-map-monorepo && pnpm typecheck && pnpm test && pnpm build
+pnpm --filter @story-map/remark-story-map test
+pnpm --filter @story-map/remark-story-map typecheck
+pnpm --filter @story-map/remark-story-map build
 
-# 只 build plugin
-pnpm --filter @story-map/obsidian-story-map build
-
-# 安裝到 vault（複製四個檔）
-VAULT=~/Work/obs-story-map
-mkdir -p "$VAULT/.obsidian/plugins/story-map"
-cp packages/obsidian-story-map/dist/{main.js,manifest.json,styles.css,versions.json} \
-   "$VAULT/.obsidian/plugins/story-map/"
-
-# 確認 vault 沒被污染
-git -C "$VAULT" status --short
+pnpm --filter @story-map/react-story-map typecheck
+pnpm --filter @story-map/react-story-map build
 ```
 
-參考檔案：
+## 10. Acceptance checklist
 
-- `SPEC.md` §4 故事 schema、§5 note 解析優先序、§7 MVP acceptance
-- `docs/implementation-plan.md` Track C
-- `packages/obsidian-story-map/README.md`
-- vault：`~/Work/obs-story-map/AGENTS.md`、`docs/agents/tooling.md`、`PLUGIN-INSTALL-GUIDE.md`、`plugins/remark-obsidian-leaflet/README.md`
+- [ ] Same `story-map` fence parses in Obsidian and Remark.
+- [ ] Explicit notes inherit frontmatter.
+- [ ] Explicit slide fields override note frontmatter.
+- [ ] `noteFolder` recursively finds `story-map-note: true`.
+- [ ] asc/desc `dateField` sort matches Obsidian.
+- [ ] `basic` matches agreed semantics.
+- [ ] `link` emits final published URL.
+- [ ] `full` renders stripped note body.
+- [ ] Note-relative media works.
+- [ ] Explicit source-relative media works.
+- [ ] Tool/output directories are skipped.
+- [ ] No unnecessary absolute Vault path is serialized.
+- [ ] Multiple StoryMaps mount independently.
+- [ ] Removed hosts unmount React roots.
+- [ ] Docusaurus SSR/build does not initialize Leaflet.
+- [ ] Normal published note title link works without Docusaurus imports in renderer.
+- [ ] Docusaurus light/dark StoryMap UI is readable.
+- [ ] `kywk.github.io` integration reuses existing route index/slug authority.
+- [ ] `pnpm typecheck`, `pnpm test`, `pnpm build` pass.
 
-## 10. 回報格式
+## 11. Deferred items
 
-- 通過的驗證項與證據（截圖/測試輸出）。
-- 修正的缺陷、檔案與 commit。
-- 重現得到但未修的項目與原因（含 deferred）。
-- 指令與結果（`pnpm typecheck`/`test`/`build` 的 exit code）。
+Do not implement in this milestone:
+
+- custom marker icon compatibility;
+- marker popups;
+- marker-click-to-slide;
+- `mapzoom` visibility behavior;
+- automatic Vault asset copy;
+- WikiLink/embed rendering inside full Markdown body;
+- multiple `noteFolder`;
+- query/filter/group syntax;
+- scroll mode;
+- MapLibre;
+- CRS.Simple;
+- GeoJSON/GPX;
+- dynamic light/dark map tile provider switching.
+
+## 12. Final report format
+
+Report:
+
+- files changed;
+- tests added/changed;
+- commands executed and exit results;
+- Docusaurus smoke-test evidence;
+- any remaining blocker;
+- deferred items left intentionally untouched.
