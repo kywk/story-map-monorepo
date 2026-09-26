@@ -362,6 +362,24 @@ describe('VaultIndex scan exclusions', () => {
   });
 });
 
+describe('remarkStoryMap document flag', () => {
+  it('marks hosts that come from a story-map: true document', () => {
+    const tree = storyMapTree('title: Demo\nslides:\n  - title: One\n');
+
+    remarkStoryMap()(tree, { path: '/vault/Story.md', data: { frontMatter: { 'story-map': true } } });
+
+    expect((tree.children[0] as Html).value).toContain('data-story-map-document="true"');
+  });
+
+  it('does not mark hosts from an ordinary document', () => {
+    const tree = storyMapTree('title: Demo\nslides:\n  - title: One\n');
+
+    remarkStoryMap()(tree, { path: '/vault/Doc.md', data: { frontMatter: {} } });
+
+    expect((tree.children[0] as Html).value).not.toContain('data-story-map-document');
+  });
+});
+
 describe('remarkStoryMap host resolution', () => {
   it('resolves published hrefs and source-relative media from the VFile path', () => {
     const vaultRoot = mkdtempSync(path.join(tmpdir(), 'storymap-host-'));

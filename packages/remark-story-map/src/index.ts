@@ -20,8 +20,10 @@ export default function remarkStoryMap(options: RemarkStoryMapOptions = {}) {
       })
     : undefined;
 
-  return (tree: Root, file?: { path?: string }) => {
+  return (tree: Root, file?: RemarkVFile) => {
     const sourcePath = typeof file?.path === 'string' ? file.path : undefined;
+    const isDocument = file?.data?.frontMatter?.['story-map'] === true;
+    const documentAttribute = isDocument ? ' data-story-map-document="true"' : '';
 
     visit(tree, 'code', (node: Code, index, parent) => {
       if (node.lang !== STORY_MAP_FENCE || index === undefined || !parent) return;
@@ -33,11 +35,18 @@ export default function remarkStoryMap(options: RemarkStoryMapOptions = {}) {
       const encoded = encodeURIComponent(JSON.stringify(story));
       const html: Html = {
         type: 'html',
-        value: `<div class="story-map-host" data-story-map-config="${escapeAttribute(encoded)}"></div>`,
+        value: `<div class="story-map-host"${documentAttribute} data-story-map-config="${escapeAttribute(encoded)}"></div>`,
       };
 
       parent.children[index] = html;
     });
+  };
+}
+
+interface RemarkVFile {
+  path?: string;
+  data?: {
+    frontMatter?: Record<string, unknown>;
   };
 }
 
