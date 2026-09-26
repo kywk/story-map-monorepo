@@ -7,9 +7,10 @@
     "node": ">=22"
   },
   "scripts": {
+    "release:check": "node scripts/release-npm.mjs",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test",
+    "test": "node --test scripts/release-npm.test.mjs && pnpm -r --if-present test",
     "clean": "pnpm -r run --if-present clean",
     "dev:obsidian": "pnpm --filter @story-map/story-map-core build && pnpm --filter @story-map/react-story-map build && pnpm --filter @story-map/obsidian-story-map dev"
   },

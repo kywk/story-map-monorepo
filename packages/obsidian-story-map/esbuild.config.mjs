@@ -30,5 +30,5 @@ await esbuild.build({
   loader: { '.png': 'dataurl', '.svg': 'dataurl' },
 });
 
-await cp('manifest.json', 'dist/manifest.json');
-await cp('versions.json', 'dist/versions.json');
+await cp('../../manifest.json', 'dist/manifest.json');
+await cp('../../versions.json', 'dist/versions.json');

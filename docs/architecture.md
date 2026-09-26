@@ -266,12 +266,22 @@ pnpm --filter @story-map/obsidian-story-map build
 
 Plugin artifacts land in `packages/obsidian-story-map/dist/` as `main.js`, `manifest.json`,
 `styles.css`, and `versions.json`; copy them to `<Vault>/.obsidian/plugins/story-map/`.
+Repository-root `manifest.json` and `versions.json` are canonical plugin metadata;
+`esbuild.config.mjs` copies them into the plugin output. The first release is desktop-only.
 Release steps are in `../RELEASING.md`.
+
+The npm workflow `.github/workflows/release-npm.yml` responds to `npm-v*` tags, validates
+stable lockstep versions, runs checks and `scripts/release-npm.mjs`, then publishes only
+the three library tarballs through npm OIDC. The script packs with pnpm, verifies packed
+exports/metadata and installs an isolated consumer for SSR, Remark and declaration checks.
+Publication reuses the verified tarballs; matching existing registry integrities allow a
+partial release retry. Account-side Trusted Publishers must be configured separately.
 
 ## 10. Tests
 
 | Location | Covers |
 | --- | --- |
+| `scripts/release-npm.test.mjs` | tag mismatch, dependency publication order, partial retry, integrity conflicts and registry errors with a fake npm executable |
 | `packages/story-map-core/src/parser.test.ts` | parsing, normalization, defaults, ordering, fence extraction, helpers |
 | `packages/react-story-map/src/StoryMap.test.tsx` | slide-title rendering: plain heading, browser-link fallback, callback anchor |
 | `packages/obsidian-story-map/src/resolver.test.ts` | explicit slides, folder discovery, note display, media resolution |
@@ -298,5 +308,6 @@ Archived milestones live under `history/`:
 
 - `history/2026-09-25-init/` — initial Obsidian MVP planning.
 - `history/2026-09-26-docusaurus-remark/` — Docusaurus/Remark milestone planning.
+- `history/2026-09-26-npm-release/` — approved npm release preparation and deferred Obsidian gates.
 
 They are archival; the current contract is `SPEC.md` plus this document.

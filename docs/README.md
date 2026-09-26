@@ -8,6 +8,7 @@ Start here when you need to understand or change StoryMap.
 | [`../SPEC.md`](../SPEC.md) | Product and architecture contract (source of truth). |
 | [`../AGENTS.md`](../AGENTS.md) | Working agreement, boundaries, definition of done. |
 | [`architecture.md`](architecture.md) | Concrete implementation map: packages, data flow, files, APIs, commands. |
+| [`../RELEASING.md`](../RELEASING.md) | npm publishing, Trusted Publisher setup and deferred Obsidian submission. |
 | [`history/`](history/) | Archived plans and background. Superseded, not authoritative. |
 
 Recommended reading order for a new agent: `README.md` -> `architecture.md` -> `SPEC.md` -> `AGENTS.md`.

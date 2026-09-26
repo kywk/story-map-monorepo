@@ -3,6 +3,18 @@
 Obsidian adapter that opens a StoryMap document as a dedicated, file-backed full-leaf
 view similar to Obsidian Kanban.
 
+The first release targets desktop only. The declared minimum version is Obsidian 1.8.0;
+compatibility testing on that version is required before community submission.
+
+## Network use
+
+Maps load tiles from OpenStreetMap (`https://{s}.tile.openstreetmap.org`) by default
+to display geographic context. Tile requests disclose the requested map area and normal
+connection information to the tile provider. A custom `map.tileUrl` uses the configured
+provider instead. Remote slide images, videos, iframes and Markdown images connect to
+their configured hosts when displayed; linked notes open through Obsidian.
+Map tiles need a network connection unless supplied by a locally accessible provider.
+
 A StoryMap document is a normal Markdown file with:
 
 ```yaml
@@ -75,3 +87,6 @@ Copy `dist/main.js`, `dist/manifest.json`, `dist/styles.css`, and `dist/versions
 ```text
 <Vault>/.obsidian/plugins/story-map/
 ```
+
+The repository-root `manifest.json` and `versions.json` are canonical; the build copies
+them into `dist`. Community submission and Obsidian 1.8.0 smoke testing are deferred.

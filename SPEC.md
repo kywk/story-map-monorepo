@@ -155,6 +155,9 @@ behavioral reference for note resolution and `noteDisplay`, except where browser
 navigation necessarily differs. It must not depend on the community Obsidian Leaflet
 plugin at runtime.
 
+The first plugin release targets desktop only. The declared minimum Obsidian version is
+1.8.0; compatibility on that version must be verified before community submission.
+
 ### `remark-story-map`
 
 Owns the build-time fenced-block transform, optional `vaultRoot` Vault indexing (skipping

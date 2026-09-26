@@ -5,5 +5,5 @@
   "minAppVersion": "1.8.0",
   "description": "Open story-map documents as a dedicated full-leaf Leaflet StoryMap view.",
   "author": "kywk",
-  "isDesktopOnly": false
+  "isDesktopOnly": true
 }

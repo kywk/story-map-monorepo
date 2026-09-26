@@ -18,11 +18,15 @@ Docusaurus SPA navigation.
 ## Installation
 
 ```bash
-pnpm add @story-map/remark-story-map
+pnpm add @story-map/remark-story-map react@^19 react-dom@^19
 ```
 
 The renderer is pulled in transitively, but the host site is responsible for
 providing `react` / `react-dom` (declared as peer dependencies).
+Both peers must be React 19. A Docusaurus installation using React 18 does not satisfy
+these peer requirements; verify the site's versions before integrating. Build-time
+usage is ESM and the release workflow verifies Node 24 imports. A full Docusaurus site
+build and browser smoke test remain host integration checks.
 
 ## Docusaurus setup
 

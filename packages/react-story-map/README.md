@@ -1,0 +1,124 @@
+# @story-map/react-story-map
+
+React renderer for StoryMap slides, with a Leaflet map, Markdown text, media, and
+previous/next navigation. Requires React and React DOM 19.
+
+## Install
+
+```sh
+npm install @story-map/react-story-map react@^19 react-dom@^19 leaflet@^1.9.4
+```
+
+Leaflet is also a package dependency; installing it directly makes its stylesheet
+available to your application's bundler. Import both stylesheets once in your app's
+global CSS entry or root component:
+
+```tsx
+import 'leaflet/dist/leaflet.css';
+import '@story-map/react-story-map/styles.css';
+```
+
+The renderer does not import either stylesheet automatically. Your host must bundle
+them and provide a visible container height.
+
+## Minimal example
+
+Use this as `src/main.tsx` in a React 19 application with a CSS-aware bundler such
+as Vite and an HTML `<div id="root"></div>`:
+
+```tsx
+import { createRoot } from 'react-dom/client';
+import { StoryMap, type StoryMapConfig } from '@story-map/react-story-map';
+import 'leaflet/dist/leaflet.css';
+import '@story-map/react-story-map/styles.css';
+
+const story: StoryMapConfig = {
+  schema: 'storymap/v1',
+  title: 'A walk through Taipei',
+  height: '520px',
+  map: {
+    zoom: 14,
+    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+    showPath: true,
+  },
+  slides: [
+    {
+      title: 'Taipei Main Station',
+      text: 'Start your **walking tour** here.',
+      location: { lat: 25.0478, lng: 121.517 },
+    },
+    {
+      title: 'Dihua Street',
+      text: 'Explore the historic street.',
+      location: { lat: 25.0555, lng: 121.5097 },
+      notePath: '/notes/dihua-street',
+    },
+  ],
+};
+
+createRoot(document.getElementById('root')!).render(<StoryMap story={story} />);
+```
+
+Keep the `story` object stable between unrelated React renders. The renderer
+recreates its Leaflet map when the story changes. The example requests map tiles
+from OpenStreetMap; supply your own `tileUrl` and attribution for another provider.
+
+For YAML parsing and built-in defaults, use the separate
+`@story-map/story-map-core` package. This renderer accepts resolved
+`StoryMapConfig` data; the host resolves note contents, folder discovery, routes,
+and media URLs before rendering.
+
+## Props
+
+| Prop | Type / default | Purpose |
+| --- | --- | --- |
+| `story` | `StoryMapConfig`, required | Resolved story with map options and ordered slides. |
+| `initialSlide` | `number`, `0` | Zero-based initial slide index, clamped to the available slides. |
+| `className` | `string` | Additional class on the outer section. |
+| `onSlideChange` | `(index: number, slide: StorySlide) => void` | Called for the active slide, including initial rendering. |
+| `onNoteClick` | `(notePath: string, event: MouseEvent) => void` | Host navigation handler for a linked slide title. |
+| `onNoteHover` | `(notePath: string, targetEl: HTMLElement, event: MouseEvent) => void` | Host preview handler for a linked slide title. |
+| `noteLinkClassName` | `string` | Additional class on linked slide titles. |
+
+Without note callbacks, a slide's `notePath` becomes a normal anchor `href`.
+Providing either note callback prevents default click navigation; provide
+`onNoteClick` as well if your host needs clicks to navigate. A title without
+`notePath` renders as plain text. Slide text supports Markdown and GitHub-flavored
+Markdown; note WikiLinks and embeds must be resolved by the host if needed.
+
+`StoryMapProps`, `StoryMapConfig`, `StoryMapOptions`, `StoryNoteDisplay`,
+`StorySlide`, `StoryLocation`, and `StoryMedia` are exported as TypeScript types.
+
+## Server rendering
+
+The JavaScript entry is safe to import during SSR. Leaflet loads dynamically in a
+client effect, so the map is initialized only in the browser. The server can render
+the slide panel and the client hydrates it. Import CSS through your framework's
+supported global stylesheet entry. The renderer cleans up its map on unmount and
+uses `ResizeObserver`, when available, to refresh map sizing after layout changes.
+
+## Theme
+
+Set these semantic CSS variables on the StoryMap or an ancestor to match your host:
+
+```css
+.my-story-theme {
+  --story-map-bg: #18212f;
+  --story-map-fg: #f3f4f6;
+  --story-map-muted: #cbd5e1;
+  --story-map-border: #475569;
+  --story-map-accent: #93c5fd;
+}
+```
+
+```tsx
+<StoryMap story={story} className="my-story-theme" />
+```
+
+These variables style the panel, text, links, borders, and navigation. The tile
+provider controls the underlying map imagery.
+
+## License
+
+MIT.

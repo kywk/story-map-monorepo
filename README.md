@@ -9,11 +9,11 @@ A small, reusable Leaflet-based StoryMap stack. One Markdown source and one stan
 
 ## Packages
 
-| Package | Role | Published |
+| Package | Role | Distribution |
 | --- | --- | --- |
-| `@story-map/story-map-core` | Framework-agnostic schema, parser, and helpers | npm |
-| `@story-map/react-story-map` | React + Leaflet renderer | npm |
-| `@story-map/remark-story-map` | Remark build-time transform + browser client | npm |
+| `@story-map/story-map-core` | Framework-agnostic schema, parser, and helpers | npm (release preparation) |
+| `@story-map/react-story-map` | React + Leaflet renderer | npm (release preparation) |
+| `@story-map/remark-story-map` | Remark build-time transform + browser client | npm (release preparation) |
 | `@story-map/obsidian-story-map` | Obsidian file-backed view and Vault resolver | private |
 
 ## Quick start
@@ -88,3 +88,12 @@ before render time.
 - `AGENTS.md` — working agreement and definition of done.
 - `RELEASING.md` — npm and Obsidian plugin release steps.
 - `docs/history/` — archived plans.
+
+## Obsidian release status
+
+The plugin's first release targets desktop only; community submission and Obsidian 1.8.0
+compatibility verification are pending. Build instructions and document examples are in
+[the plugin README](packages/obsidian-story-map/README.md). The root manifest is canonical.
+
+Maps use OpenStreetMap network tiles by default; custom tile providers and remote media
+connect to their configured hosts. See the plugin README's network disclosure.
