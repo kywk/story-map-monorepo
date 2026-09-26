@@ -3,7 +3,7 @@
   "name": "Story Map",
   "version": "0.1.0",
   "minAppVersion": "1.8.0",
-  "description": "Render Leaflet-based story maps from storymap code blocks.",
+  "description": "Open story-map documents as a dedicated full-leaf Leaflet StoryMap view.",
   "author": "kywk",
   "isDesktopOnly": false
 }

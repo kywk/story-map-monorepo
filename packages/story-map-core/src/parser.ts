@@ -1,7 +1,12 @@
 import { load } from 'js-yaml';
-import { storyMapSchema } from './schema.js';
+import { storyMapSchema, storyMapSourceSchema } from './schema.js';
 import { coerceLocation, coerceMedia, validCoordinates } from './helpers.js';
-import type { StoryMapConfig } from './types.js';
+import type {
+  StoryMapConfig,
+  StoryMapSourceConfig,
+  StoryMapSourceDefaults,
+  StorySlide,
+} from './types.js';
 
 export class StoryMapParseError extends Error {
   constructor(message: string) {
@@ -73,4 +78,98 @@ export function parseStoryMapObject(value: unknown): StoryMapConfig {
 
 export function parseStoryMapYaml(source: string): StoryMapConfig {
   return parseStoryMapObject(load(source));
+}
+
+export function parseStoryMapSourceObject(
+  value: unknown,
+  defaults?: StoryMapSourceDefaults,
+): StoryMapSourceConfig {
+  const normalized = normalizeStoryMapInput(value);
+  return storyMapSourceSchema.parse(applySourceDefaults(normalized, defaults)) as StoryMapSourceConfig;
+}
+
+export function parseStoryMapSourceYaml(
+  source: string,
+  defaults?: StoryMapSourceDefaults,
+): StoryMapSourceConfig {
+  return parseStoryMapSourceObject(load(source), defaults);
+}
+
+export function applySourceDefaults(
+  value: unknown,
+  defaults?: StoryMapSourceDefaults,
+): unknown {
+  if (!defaults) return value;
+
+  const input = { ...asRecord(value) };
+  const map = { ...asRecord(input.map) };
+
+  if (input.order === undefined && defaults.order !== undefined) input.order = defaults.order;
+  if (input.dateField === undefined && defaults.dateField !== undefined) {
+    input.dateField = defaults.dateField;
+  }
+  if (input.noteDisplay === undefined && defaults.noteDisplay !== undefined) {
+    input.noteDisplay = defaults.noteDisplay;
+  }
+
+  const mapDefaults = defaults.map;
+  if (mapDefaults) {
+    if (map.zoom === undefined && mapDefaults.zoom !== undefined) map.zoom = mapDefaults.zoom;
+    if (map.minZoom === undefined && mapDefaults.minZoom !== undefined) map.minZoom = mapDefaults.minZoom;
+    if (map.maxZoom === undefined && mapDefaults.maxZoom !== undefined) map.maxZoom = mapDefaults.maxZoom;
+    if (map.tileUrl === undefined && mapDefaults.tileUrl !== undefined) map.tileUrl = mapDefaults.tileUrl;
+    if (map.attribution === undefined && mapDefaults.attribution !== undefined) {
+      map.attribution = mapDefaults.attribution;
+    }
+    if (map.showPath === undefined && mapDefaults.showPath !== undefined) {
+      map.showPath = mapDefaults.showPath;
+    }
+  }
+
+  if (Object.keys(map).length > 0) input.map = map;
+  return input;
+}
+
+export function toStoryMapConfig(source: StoryMapSourceConfig, slides: StorySlide[]): StoryMapConfig {
+  const config: StoryMapConfig = {
+    schema: source.schema,
+    height: source.height,
+    map: source.map,
+    slides,
+  };
+  if (source.id !== undefined) config.id = source.id;
+  if (source.title !== undefined) config.title = source.title;
+  return config;
+}
+
+export function extractFencedBlock(markdown: string, language: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  const openingFence = new RegExp(
+    '^\\s*[`~]{3,}\\s*' + escapeRegExp(language) + '\\s*$',
+    'i',
+  );
+  const closingFence = /^\s*[`~]{3,}\s*$/;
+  let collecting = false;
+  const collected: string[] = [];
+
+  for (const line of lines) {
+    if (!collecting) {
+      if (openingFence.test(line)) {
+        collecting = true;
+      }
+      continue;
+    }
+
+    if (closingFence.test(line)) {
+      break;
+    }
+
+    collected.push(line);
+  }
+
+  return collecting ? collected.join('\n') : null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

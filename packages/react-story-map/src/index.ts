@@ -3,6 +3,7 @@ export type { StoryMapProps } from './StoryMap.js';
 export type {
   StoryMapConfig,
   StoryMapOptions,
+  StoryNoteDisplay,
   StorySlide,
   StoryLocation,
   StoryMedia,

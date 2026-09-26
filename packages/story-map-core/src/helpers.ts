@@ -1,4 +1,4 @@
-import type { StoryLocation, StoryMedia, StorySlide } from './types.js';
+import type { StoryLocation, StoryMedia, StoryOrder, StorySlide } from './types.js';
 
 export function parseWikiLinkRef(value: string): string {
   let ref = value.trim();
@@ -9,6 +9,11 @@ export function parseWikiLinkRef(value: string): string {
   ref = ref.split('|', 1)[0] ?? ref;
   ref = ref.split('#', 1)[0] ?? ref;
   return ref.trim();
+}
+
+export function stripFrontmatter(markdown: string): string {
+  const match = /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(markdown);
+  return match ? markdown.slice(match[0].length) : markdown;
 }
 
 export function coerceLocation(value: unknown, zoom?: unknown): StoryLocation | undefined {
@@ -83,4 +88,88 @@ export function mergeResolvedSlide(base: StorySlide, resolved: Partial<StorySlid
 
 export function validCoordinates(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+export function slideFromNoteFrontmatter(
+  frontmatter: Record<string, unknown>,
+  fallbackTitle?: string,
+): Partial<StorySlide> {
+  const location = coerceLocation(frontmatter.location, frontmatter.zoom ?? frontmatter.defaultZoom);
+  const media = coerceMedia(frontmatter.cover ?? frontmatter.image ?? frontmatter.media);
+  const title =
+    typeof frontmatter.title === 'string' && frontmatter.title.trim()
+      ? frontmatter.title
+      : fallbackTitle;
+  const description =
+    typeof frontmatter.description === 'string'
+      ? frontmatter.description
+      : typeof frontmatter.summary === 'string'
+        ? frontmatter.summary
+        : undefined;
+
+  return {
+    ...(title ? { title } : {}),
+    ...(description !== undefined ? { text: description } : {}),
+    ...(location ? { location } : {}),
+    ...(media ? { media } : {}),
+    ...(typeof frontmatter.mapmarker === 'string' ? { mapmarker: frontmatter.mapmarker } : {}),
+  };
+}
+
+export interface NoteDateInfo {
+  path: string;
+  date: number | null;
+}
+
+export function toTimestamp(value: unknown): number | null {
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Date.parse(trimmed);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  return null;
+}
+
+export function compareNoteDates(a: NoteDateInfo, b: NoteDateInfo, order: StoryOrder): number {
+  const aValid = a.date !== null;
+  const bValid = b.date !== null;
+
+  if (aValid && !bValid) return -1;
+  if (!aValid && bValid) return 1;
+
+  if (aValid && bValid && a.date !== b.date) {
+    return order === 'asc' ? a.date! - b.date! : b.date! - a.date!;
+  }
+
+  if (a.path === b.path) return 0;
+  return a.path < b.path ? -1 : 1;
+}
+
+export function sortNoteDates<T extends NoteDateInfo>(notes: T[], order: StoryOrder): T[] {
+  return [...notes].sort((a, b) => compareNoteDates(a, b, order));
+}
+
+export function normalizeVaultFolder(folder: string): string {
+  return folder
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '');
+}
+
+export function isPathInFolder(filePath: string, folder: string): boolean {
+  const normalizedFolder = normalizeVaultFolder(folder);
+  const normalizedFile = filePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!normalizedFolder) return true;
+  return normalizedFile.startsWith(`${normalizedFolder}/`);
 }

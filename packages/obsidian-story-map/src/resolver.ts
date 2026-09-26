@@ -1,54 +1,119 @@
 import type { App, TFile } from 'obsidian';
 import {
-  coerceLocation,
-  coerceMedia,
+  isPathInFolder,
   mergeResolvedSlide,
   parseWikiLinkRef,
+  slideFromNoteFrontmatter,
+  sortNoteDates,
+  stripFrontmatter,
+  toStoryMapConfig,
+  toTimestamp,
   type StoryMapConfig,
+  type StoryMapSourceConfig,
   type StoryMedia,
+  type StoryNoteDisplay,
   type StorySlide,
 } from '@story-map/story-map-core';
 
 export async function resolveObsidianStory(
   app: App,
-  story: StoryMapConfig,
+  source: StoryMapSourceConfig,
   sourcePath: string,
 ): Promise<StoryMapConfig> {
-  const slides = await Promise.all(
-    story.slides.map(async (slide) => resolveSlide(app, slide, sourcePath)),
-  );
-  return { ...story, slides };
+  const noteDisplay = source.noteDisplay;
+  const explicitSlides = source.slides ?? [];
+  const slides = explicitSlides.length > 0
+    ? await resolveExplicitSlides(app, explicitSlides, sourcePath, noteDisplay)
+    : source.noteFolder
+      ? await resolveFolderSlides(app, source.noteFolder, source.dateField, source.order, noteDisplay)
+      : [];
+
+  return toStoryMapConfig(source, slides);
 }
 
-async function resolveSlide(app: App, slide: StorySlide, sourcePath: string): Promise<StorySlide> {
+async function resolveExplicitSlides(
+  app: App,
+  slides: StorySlide[],
+  sourcePath: string,
+  noteDisplay: StoryNoteDisplay,
+): Promise<StorySlide[]> {
+  return Promise.all(slides.map((slide) => resolveSlide(app, slide, sourcePath, noteDisplay)));
+}
+
+async function resolveFolderSlides(
+  app: App,
+  noteFolder: string,
+  dateField: string,
+  order: StoryMapSourceConfig['order'],
+  noteDisplay: StoryNoteDisplay,
+): Promise<StorySlide[]> {
+  const entries = app.vault
+    .getMarkdownFiles()
+    .filter((file) => isPathInFolder(file.path, noteFolder))
+    .map((file) => {
+      const frontmatter = readFrontmatter(app, file);
+      return {
+        path: file.path,
+        date: toTimestamp(frontmatter[dateField]),
+        file,
+        frontmatter,
+      };
+    })
+    .filter((entry) => entry.frontmatter['story-map-note'] === true);
+
+  return Promise.all(
+    sortNoteDates(entries, order).map((entry) =>
+      resolveDiscoveredNote(app, entry.file, entry.frontmatter, noteDisplay),
+    ),
+  );
+}
+
+async function resolveDiscoveredNote(
+  app: App,
+  file: TFile,
+  frontmatter: Record<string, unknown>,
+  noteDisplay: StoryNoteDisplay,
+): Promise<StorySlide> {
+  const slide: StorySlide = { ...slideFromNoteFrontmatter(frontmatter, file.basename) };
+  const media = slide.media ? await resolveMedia(app, slide.media, file.path) : undefined;
+  const withMedia = media ? { ...slide, media } : slide;
+  return applyNoteDisplay(app, withMedia, file, noteDisplay);
+}
+
+async function resolveSlide(
+  app: App,
+  slide: StorySlide,
+  sourcePath: string,
+  noteDisplay: StoryNoteDisplay,
+): Promise<StorySlide> {
   let resolved: Partial<StorySlide> = {};
   let noteFile: TFile | null = null;
 
   if (slide.note) {
     noteFile = resolveWikiFile(app, slide.note, sourcePath);
     if (noteFile) {
-      const frontmatter = app.metadataCache.getFileCache(noteFile)?.frontmatter ?? {};
-      const location = coerceLocation(frontmatter.location, frontmatter.zoom ?? frontmatter.defaultZoom);
-      const media = coerceMedia(frontmatter.cover ?? frontmatter.image ?? frontmatter.media);
-
-      resolved = {
-        title: typeof frontmatter.title === 'string' ? frontmatter.title : noteFile.basename,
-        ...(typeof frontmatter.description === 'string'
-          ? { text: frontmatter.description }
-          : typeof frontmatter.summary === 'string'
-            ? { text: frontmatter.summary }
-            : {}),
-        ...(location ? { location } : {}),
-        ...(media ? { media } : {}),
-        ...(typeof frontmatter.mapmarker === 'string' ? { mapmarker: frontmatter.mapmarker } : {}),
-      };
+      resolved = slideFromNoteFrontmatter(readFrontmatter(app, noteFile), noteFile.basename);
     }
   }
 
   const merged = mergeResolvedSlide(slide, resolved);
   const mediaSource = slide.media ? sourcePath : (noteFile?.path ?? sourcePath);
   const media = merged.media ? await resolveMedia(app, merged.media, mediaSource) : undefined;
-  return { ...merged, ...(media ? { media } : {}) };
+  const withMedia = { ...merged, ...(media ? { media } : {}) };
+  return noteFile ? applyNoteDisplay(app, withMedia, noteFile, noteDisplay) : withMedia;
+}
+
+async function applyNoteDisplay(
+  app: App,
+  slide: StorySlide,
+  file: TFile,
+  noteDisplay: StoryNoteDisplay,
+): Promise<StorySlide> {
+  if (noteDisplay === 'basic') return slide;
+  if (noteDisplay === 'link') return { ...slide, notePath: file.path };
+
+  const body = stripFrontmatter(await app.vault.cachedRead(file)).trim();
+  return body ? { ...slide, text: body } : slide;
 }
 
 async function resolveMedia(app: App, media: StoryMedia, sourcePath: string): Promise<StoryMedia> {
@@ -63,4 +128,9 @@ async function resolveMedia(app: App, media: StoryMedia, sourcePath: string): Pr
 
 function resolveWikiFile(app: App, link: string, sourcePath: string): TFile | null {
   return app.metadataCache.getFirstLinkpathDest(parseWikiLinkRef(link), sourcePath);
+}
+
+function readFrontmatter(app: App, file: TFile): Record<string, unknown> {
+  const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
+  return (frontmatter ?? {}) as Record<string, unknown>;
 }

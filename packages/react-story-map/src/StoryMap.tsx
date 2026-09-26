@@ -9,9 +9,20 @@ export interface StoryMapProps {
   initialSlide?: number;
   className?: string;
   onSlideChange?: (index: number, slide: StorySlide) => void;
+  onNoteClick?: (notePath: string, event: MouseEvent) => void;
+  onNoteHover?: (notePath: string, targetEl: HTMLElement, event: MouseEvent) => void;
+  noteLinkClassName?: string;
 }
 
-export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: StoryMapProps) {
+export function StoryMap({
+  story,
+  initialSlide = 0,
+  className,
+  onSlideChange,
+  onNoteClick,
+  onNoteHover,
+  noteLinkClassName,
+}: StoryMapProps) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerLayerRef = useRef<LayerGroup | null>(null);
@@ -20,7 +31,7 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
   const activeIndexRef = useRef(0);
   const [rawActiveIndex, setActiveIndex] = useState(() => clamp(initialSlide, 0, story.slides.length - 1));
   const activeIndex = clamp(rawActiveIndex, 0, story.slides.length - 1);
-  const activeSlide = story.slides[activeIndex]!;
+  const activeSlide = story.slides[activeIndex];
   activeIndexRef.current = activeIndex;
 
   const locatedSlides = useMemo(
@@ -91,7 +102,7 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
   }, [story, locatedSlides]);
 
   useEffect(() => {
-    const location = activeSlide.location;
+    const location = activeSlide?.location;
     if (location && mapRef.current) {
       mapRef.current.flyTo(
         [location.lat, location.lng],
@@ -100,15 +111,38 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
       );
     }
     updateMarkerStyles(story, activeIndex, markersRef.current);
-    onSlideChange?.(activeIndex, activeSlide);
+    if (activeSlide) onSlideChange?.(activeIndex, activeSlide);
   }, [activeIndex, activeSlide, onSlideChange, story]);
 
   useEffect(() => {
     setActiveIndex((current) => clamp(current, 0, story.slides.length - 1));
   }, [story.slides.length]);
 
+  useEffect(() => {
+    const element = mapElementRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   function goTo(next: number) {
     setActiveIndex(clamp(next, 0, story.slides.length - 1));
+  }
+
+  if (!activeSlide) {
+    return (
+      <section
+        className={['story-map', className].filter(Boolean).join(' ')}
+        style={{ height: story.height }}
+        aria-label={story.title ?? 'Story map'}
+      >
+        <div className="story-map__empty">This StoryMap has no slides.</div>
+      </section>
+    );
   }
 
   return (
@@ -125,7 +159,12 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
       <div className="story-map__map" ref={mapElementRef} />
       <article className="story-map__panel">
         {story.title && <div className="story-map__story-title">{story.title}</div>}
-        {activeSlide.title && <h2>{activeSlide.title}</h2>}
+        <SlideTitle
+          slide={activeSlide}
+          onNoteClick={onNoteClick}
+          onNoteHover={onNoteHover}
+          noteLinkClassName={noteLinkClassName}
+        />
         <StoryMediaView slide={activeSlide} />
         {activeSlide.text && (
           <div className="story-map__text">
@@ -147,6 +186,44 @@ export function StoryMap({ story, initialSlide = 0, className, onSlideChange }: 
         </nav>
       </article>
     </section>
+  );
+}
+
+function SlideTitle({
+  slide,
+  onNoteClick,
+  onNoteHover,
+  noteLinkClassName,
+}: {
+  slide: StorySlide;
+  onNoteClick?: StoryMapProps['onNoteClick'] | undefined;
+  onNoteHover?: StoryMapProps['onNoteHover'] | undefined;
+  noteLinkClassName?: string | undefined;
+}) {
+  if (!slide.title) return null;
+
+  const notePath = slide.notePath;
+  const interactive =
+    notePath !== undefined && (onNoteClick !== undefined || onNoteHover !== undefined);
+  if (!interactive) return <h2>{slide.title}</h2>;
+
+  return (
+    <h2>
+      <a
+        className={['story-map__note-link', noteLinkClassName].filter(Boolean).join(' ')}
+        href={notePath}
+        data-href={notePath}
+        onClick={(event) => {
+          event.preventDefault();
+          onNoteClick?.(notePath, event.nativeEvent);
+        }}
+        onMouseOver={(event) => {
+          onNoteHover?.(notePath, event.currentTarget, event.nativeEvent);
+        }}
+      >
+        {slide.title}
+      </a>
+    </h2>
   );
 }
 

@@ -1,6 +1,11 @@
 # Remark Story Map
 
-Transforms fenced `storymap` blocks to browser placeholders and provides a client entry that mounts `@story-map/react-story-map`.
+Transforms fenced `story-map` blocks to browser placeholders and provides a client entry that mounts `@story-map/react-story-map`.
+
+When `vaultRoot` is configured, the transformer resolves explicit `note: "[[...]]"`
+slides and recursively discovers `noteFolder` Markdown notes flagged with
+`story-map-note: true`, applying the same `dateField` + `order: asc | desc` rules as the
+Obsidian adapter. Explicit `slides` keep their exact order and are never appended to.
 
 ## Docusaurus setup
 

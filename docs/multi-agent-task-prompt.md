@@ -69,11 +69,14 @@ Ownership: `packages/obsidian-story-map/**`
 
 Tasks:
 
-- finish `storymap` code-block processor;
+- finish the file-backed full-leaf `TextFileView` for `story-map: true` documents;
+- extract and parse the `story-map` fenced configuration;
+- expose `Open as Story Map` / `Open as Markdown`;
+- recursively scan `noteFolder` for `story-map-note: true` notes and sort by `dateField`/`order`;
 - resolve `slide.note` WikiLinks through Obsidian metadata APIs;
 - inherit frontmatter title/location/description/cover when slide values are absent;
 - convert local Vault media to resource URLs;
-- mount `react-story-map` and cleanly unmount through `MarkdownRenderChild`;
+- mount `react-story-map` and cleanly unmount when the view unloads;
 - make the package bundle to Obsidian `dist/main.js`, `dist/manifest.json`, `dist/styles.css`;
 - do not depend on the community Obsidian Leaflet plugin runtime.
 
@@ -83,7 +86,7 @@ Ownership: `packages/remark-story-map/**`
 
 Tasks:
 
-- finish the fenced `storymap` Remark transform;
+- finish the fenced `story-map` Remark transform;
 - when `vaultRoot` is configured, resolve note frontmatter similarly to the Obsidian adapter;
 - serialize only normalized `StoryMapConfig` to the page;
 - finish the browser client entry that mounts every host using `react-story-map`;

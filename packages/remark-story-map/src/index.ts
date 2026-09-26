@@ -1,7 +1,9 @@
 import type { Code, Html, Root } from 'mdast';
 import { visit } from 'unist-util-visit';
-import { parseStoryMapYaml } from '@story-map/story-map-core';
+import { parseStoryMapSourceYaml, toStoryMapConfig } from '@story-map/story-map-core';
 import { VaultIndex } from './vault.js';
+
+export const STORY_MAP_FENCE = 'story-map';
 
 export interface RemarkStoryMapOptions {
   vaultRoot?: string;
@@ -18,10 +20,12 @@ export default function remarkStoryMap(options: RemarkStoryMapOptions = {}) {
 
   return (tree: Root) => {
     visit(tree, 'code', (node: Code, index, parent) => {
-      if (node.lang !== 'storymap' || index === undefined || !parent) return;
+      if (node.lang !== STORY_MAP_FENCE || index === undefined || !parent) return;
 
-      const parsed = parseStoryMapYaml(node.value);
-      const story = vault ? vault.resolveStory(parsed) : parsed;
+      const parsed = parseStoryMapSourceYaml(node.value);
+      const story = vault
+        ? vault.resolveSource(parsed)
+        : toStoryMapConfig(parsed, parsed.slides ?? []);
       const encoded = encodeURIComponent(JSON.stringify(story));
       const html: Html = {
         type: 'html',
