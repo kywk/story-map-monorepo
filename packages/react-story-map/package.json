@@ -29,6 +29,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
+    "test": "vitest run",
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {

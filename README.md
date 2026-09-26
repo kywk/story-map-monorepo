@@ -5,7 +5,7 @@ A small, reusable Leaflet-based StoryMap stack. One Markdown source and one stan
 
 - standalone React applications;
 - an Obsidian plugin (file-backed full-leaf view);
-- a Docusaurus/Remark publishing pipeline.
+- a Docusaurus site via a Remark build-time transform and browser client.
 
 ## Packages
 
@@ -64,14 +64,22 @@ noteDisplay: link
 never reordered or appended to by folder discovery.
 
 `noteDisplay: basic | link | full` controls how resolved notes are shown (default `link`):
-frontmatter basics, basics with a hover-preview/title link to the note, or the full
-frontmatter-stripped note body.
+frontmatter basics, basics with a title link to the note, or the full frontmatter-stripped
+note body. Obsidian opens the note through host callbacks; Docusaurus renders the
+published route as a normal browser link.
+
+## Docusaurus
+
+`remark-story-map` transforms each fence at build time into a host element and a browser
+client mounts the shared renderer. Configure it with `vaultRoot`, `assetBase`, and a host
+`resolveNoteHref` route callback. See `packages/remark-story-map/README.md` and
+`examples/docusaurus/`.
 
 ## Design rule
 
 `react-story-map` must never import Obsidian or Docusaurus APIs. Platform adapters resolve
-notes, WikiLinks, Vault frontmatter, and local assets into a `StoryMapConfig` before render
-time.
+notes, WikiLinks, Vault frontmatter, local assets, and routes into a `StoryMapConfig`
+before render time.
 
 ## Documentation
 

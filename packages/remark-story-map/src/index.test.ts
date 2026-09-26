@@ -219,3 +219,199 @@ describe('VaultIndex folder discovery', () => {
     expect(story.slides[0]?.title).toBe('Explicit');
   });
 });
+
+describe('VaultIndex noteDisplay', () => {
+  const vaultRoot = mkdtempSync(path.join(tmpdir(), 'storymap-display-'));
+  mkdirSync(path.join(vaultRoot, 'Places'));
+  writeFileSync(
+    path.join(vaultRoot, 'Places', 'Santiago.md'),
+    [
+      '---',
+      'story-map-note: true',
+      'title: Santiago',
+      'date-created: 2026-01-15',
+      'description: Frontmatter summary.',
+      '---',
+      '',
+      '# Real body',
+      '',
+      'Full note text.',
+    ].join('\n'),
+  );
+
+  afterAll(() => rmSync(vaultRoot, { recursive: true, force: true }));
+
+  it('basic mode keeps frontmatter text and omits the note link', () => {
+    const vault = new VaultIndex({ vaultRoot, resolveNoteHref: () => '/docs/santiago/' });
+    const story = vault.resolveSource(parseStoryMapSourceObject({ noteFolder: 'Places', noteDisplay: 'basic' }));
+
+    expect(story.slides[0]?.text).toBe('Frontmatter summary.');
+    expect(story.slides[0]?.notePath).toBeUndefined();
+  });
+
+  it('link mode resolves the published href through the host callback', () => {
+    const seen: string[] = [];
+    const vault = new VaultIndex({
+      vaultRoot,
+      resolveNoteHref: (relativePath) => {
+        seen.push(relativePath);
+        return '/docs/places/santiago/';
+      },
+    });
+    const story = vault.resolveSource(parseStoryMapSourceObject({ noteFolder: 'Places' }));
+
+    expect(story.slides[0]?.notePath).toBe('/docs/places/santiago/');
+    expect(seen).toEqual(['Places/Santiago']);
+  });
+
+  it('link mode omits the note link when no resolver is configured', () => {
+    const vault = new VaultIndex({ vaultRoot });
+    const story = vault.resolveSource(parseStoryMapSourceObject({ noteFolder: 'Places' }));
+
+    expect(story.slides[0]?.notePath).toBeUndefined();
+  });
+
+  it('link mode omits the note link when the resolver cannot resolve it', () => {
+    const vault = new VaultIndex({ vaultRoot, resolveNoteHref: () => undefined });
+    const story = vault.resolveSource(parseStoryMapSourceObject({ noteFolder: 'Places' }));
+
+    expect(story.slides[0]?.notePath).toBeUndefined();
+  });
+
+  it('full mode uses the frontmatter-stripped note body', () => {
+    const vault = new VaultIndex({ vaultRoot, resolveNoteHref: () => '/docs/santiago/' });
+    const story = vault.resolveSource(parseStoryMapSourceObject({ noteFolder: 'Places', noteDisplay: 'full' }));
+
+    expect(story.slides[0]?.text).toBe('# Real body\n\nFull note text.');
+    expect(story.slides[0]?.notePath).toBeUndefined();
+  });
+
+  it('applies full mode to an explicitly referenced note', () => {
+    const vault = new VaultIndex({ vaultRoot });
+    const story = vault.resolveSource(
+      parseStoryMapSourceObject({ noteDisplay: 'full', slides: [{ note: '[[Santiago]]' }] }),
+    );
+
+    expect(story.slides[0]?.title).toBe('Santiago');
+    expect(story.slides[0]?.text).toBe('# Real body\n\nFull note text.');
+  });
+});
+
+describe('VaultIndex source-relative media', () => {
+  const vaultRoot = mkdtempSync(path.join(tmpdir(), 'storymap-media-'));
+  mkdirSync(path.join(vaultRoot, 'Stories', 'images'), { recursive: true });
+  mkdirSync(path.join(vaultRoot, 'Places'));
+  writeFileSync(path.join(vaultRoot, 'Stories', 'Trip.md'), '---\nstory-map: true\n---\n');
+  writeFileSync(path.join(vaultRoot, 'Stories', 'images', 'photo.jpg'), 'fake');
+  writeFileSync(path.join(vaultRoot, 'Places', 'Santiago.md'), matter.stringify('Body', { title: 'Santiago', cover: './santiago.jpg' }));
+  writeFileSync(path.join(vaultRoot, 'Places', 'santiago.jpg'), 'fake');
+
+  afterAll(() => rmSync(vaultRoot, { recursive: true, force: true }));
+
+  it('resolves explicit slide media against the StoryMap source document', () => {
+    const vault = new VaultIndex({ vaultRoot, assetBase: '/assets' });
+    const sourcePath = path.join(vaultRoot, 'Stories', 'Trip.md');
+    const story = vault.resolveSource(
+      parseStoryMapSourceObject({ slides: [{ title: 'Explicit', media: './images/photo.jpg' }] }),
+      sourcePath,
+    );
+
+    expect(story.slides[0]?.media).toEqual({ type: 'image', src: '/assets/Stories/images/photo.jpg' });
+  });
+
+  it('keeps note-derived media relative to the note', () => {
+    const vault = new VaultIndex({ vaultRoot, assetBase: '/assets' });
+    const sourcePath = path.join(vaultRoot, 'Stories', 'Trip.md');
+    const story = vault.resolveSource(
+      parseStoryMapSourceObject({ slides: [{ note: '[[Santiago]]' }] }),
+      sourcePath,
+    );
+
+    expect(story.slides[0]?.media).toEqual({ type: 'image', src: '/assets/Places/santiago.jpg' });
+  });
+
+  it('prefers explicit slide media source over the referenced note', () => {
+    const vault = new VaultIndex({ vaultRoot, assetBase: '/assets' });
+    const sourcePath = path.join(vaultRoot, 'Stories', 'Trip.md');
+    const story = vault.resolveSource(
+      parseStoryMapSourceObject({ slides: [{ note: '[[Santiago]]', media: './images/photo.jpg' }] }),
+      sourcePath,
+    );
+
+    expect(story.slides[0]?.media).toEqual({ type: 'image', src: '/assets/Stories/images/photo.jpg' });
+  });
+});
+
+describe('VaultIndex scan exclusions', () => {
+  const vaultRoot = mkdtempSync(path.join(tmpdir(), 'storymap-scan-'));
+  for (const directory of ['node_modules/pkg', 'build', 'dist', 'coverage', '.hidden', 'Places']) {
+    mkdirSync(path.join(vaultRoot, directory), { recursive: true });
+    writeFileSync(
+      path.join(vaultRoot, directory, 'Note.md'),
+      matter.stringify('Body', { 'story-map-note': true, title: directory }),
+    );
+  }
+
+  afterAll(() => rmSync(vaultRoot, { recursive: true, force: true }));
+
+  it('skips tooling and output directories while keeping real content', () => {
+    const vault = new VaultIndex({ vaultRoot });
+    const story = vault.resolveSource(parseStoryMapSourceObject({ noteFolder: '/' }));
+
+    expect(story.slides.map((slide) => slide.title)).toEqual(['Places']);
+  });
+});
+
+describe('remarkStoryMap document flag', () => {
+  it('marks hosts that come from a story-map: true document', () => {
+    const tree = storyMapTree('title: Demo\nslides:\n  - title: One\n');
+
+    remarkStoryMap()(tree, { path: '/vault/Story.md', data: { frontMatter: { 'story-map': true } } });
+
+    expect((tree.children[0] as Html).value).toContain('data-story-map-document="true"');
+  });
+
+  it('does not mark hosts from an ordinary document', () => {
+    const tree = storyMapTree('title: Demo\nslides:\n  - title: One\n');
+
+    remarkStoryMap()(tree, { path: '/vault/Doc.md', data: { frontMatter: {} } });
+
+    expect((tree.children[0] as Html).value).not.toContain('data-story-map-document');
+  });
+});
+
+describe('remarkStoryMap host resolution', () => {
+  it('resolves published hrefs and source-relative media from the VFile path', () => {
+    const vaultRoot = mkdtempSync(path.join(tmpdir(), 'storymap-host-'));
+    mkdirSync(path.join(vaultRoot, 'Stories', 'images'), { recursive: true });
+    mkdirSync(path.join(vaultRoot, 'Places'));
+    writeFileSync(path.join(vaultRoot, 'Stories', 'images', 'photo.jpg'), 'fake');
+    writeFileSync(path.join(vaultRoot, 'Places', 'Santiago.md'), matter.stringify('Body', { title: 'Santiago' }));
+
+    try {
+      const tree = storyMapTree(
+        ['noteDisplay: link', 'slides:', '  - note: "[[Santiago]]"', '  - title: Explicit', '    media: ./images/photo.jpg', ''].join('\n'),
+      );
+      const file = { path: path.join(vaultRoot, 'Stories', 'Trip.md') };
+      const seen: string[] = [];
+
+      remarkStoryMap({
+        vaultRoot,
+        assetBase: '/assets',
+        resolveNoteHref: (relativePath) => {
+          seen.push(relativePath);
+          return relativePath === 'Places/Santiago' ? '/docs/places/santiago/' : undefined;
+        },
+      })(tree, file);
+
+      const config = readConfig(tree.children[0] as Html);
+      const slides = config.slides as Array<Record<string, unknown>>;
+      expect(slides[0]?.notePath).toBe('/docs/places/santiago/');
+      expect(slides[1]?.media).toEqual({ type: 'image', src: '/assets/Stories/images/photo.jpg' });
+      expect(seen).toEqual(['Places/Santiago']);
+      expect(JSON.stringify(config)).not.toContain(vaultRoot);
+    } finally {
+      rmSync(vaultRoot, { recursive: true, force: true });
+    }
+  });
+});

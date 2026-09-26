@@ -1,22 +1,26 @@
 .story-map {
-  --story-map-bg: var(--background-primary, #ffffff);
-  --story-map-fg: var(--text-normal, #1f2937);
-  --story-map-muted: var(--text-muted, #6b7280);
-  --story-map-border: var(--background-modifier-border, rgba(0, 0, 0, 0.14));
-  --story-map-accent: var(--interactive-accent, #2563eb);
+  /* Host-overridable semantic variables. Hosts (e.g. the Docusaurus/Infima
+     bridge on .story-map-host) set --story-map-* on an ancestor, so the
+     renderer must not re-declare them here. These private fallback variables
+     only provide defaults when no host sets the semantic variables. */
+  --story-map-bg-fallback: var(--background-primary, #ffffff);
+  --story-map-fg-fallback: var(--text-normal, #1f2937);
+  --story-map-muted-fallback: var(--text-muted, #6b7280);
+  --story-map-border-fallback: var(--background-modifier-border, rgba(0, 0, 0, 0.14));
+  --story-map-accent-fallback: var(--interactive-accent, #2563eb);
 
   position: relative;
   width: 100%;
   min-height: 360px;
   overflow: hidden;
-  border: 1px solid var(--story-map-border);
+  border: 1px solid var(--story-map-border, var(--story-map-border-fallback));
   border-radius: 12px;
-  background: var(--story-map-bg);
-  color: var(--story-map-fg);
+  background: var(--story-map-bg, var(--story-map-bg-fallback));
+  color: var(--story-map-fg, var(--story-map-fg-fallback));
 }
 
 .story-map:focus-visible {
-  outline: 2px solid var(--story-map-accent);
+  outline: 2px solid var(--story-map-accent, var(--story-map-accent-fallback));
   outline-offset: 2px;
 }
 
@@ -31,11 +35,11 @@
   place-items: center;
   height: 100%;
   min-height: 200px;
-  color: var(--story-map-muted);
+  color: var(--story-map-muted, var(--story-map-muted-fallback));
   font-size: 0.9rem;
 }
 
-.story-map__panel {
+.story-map .story-map__panel {
   position: absolute;
   z-index: 500;
   left: 16px;
@@ -45,9 +49,9 @@
   overflow: auto;
   box-sizing: border-box;
   padding: 16px;
-  border: 1px solid var(--story-map-border);
+  border: 1px solid var(--story-map-border, var(--story-map-border-fallback));
   border-radius: 10px;
-  background: color-mix(in srgb, var(--story-map-bg) 94%, transparent);
+  background: color-mix(in srgb, var(--story-map-bg, var(--story-map-bg-fallback)) 94%, transparent);
   backdrop-filter: blur(6px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
@@ -64,13 +68,13 @@
 }
 
 .story-map__note-link:hover {
-  color: var(--story-map-accent);
+  color: var(--story-map-accent, var(--story-map-accent-fallback));
   text-decoration: underline;
 }
 
 .story-map__story-title {
   margin-bottom: 6px;
-  color: var(--story-map-muted);
+  color: var(--story-map-muted, var(--story-map-muted-fallback));
   font-size: 0.82rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -104,7 +108,7 @@
 
 .story-map__figure figcaption {
   margin-top: 4px;
-  color: var(--story-map-muted);
+  color: var(--story-map-muted, var(--story-map-muted-fallback));
   font-size: 0.8rem;
 }
 
@@ -117,11 +121,11 @@
 }
 
 .story-map__nav button {
-  border: 1px solid var(--story-map-border);
+  border: 1px solid var(--story-map-border, var(--story-map-border-fallback));
   border-radius: 6px;
   padding: 7px 10px;
-  background: var(--story-map-bg);
-  color: var(--story-map-fg);
+  background: var(--story-map-bg, var(--story-map-bg-fallback));
+  color: var(--story-map-fg, var(--story-map-fg-fallback));
   cursor: pointer;
 }
 
@@ -135,13 +139,13 @@
 }
 
 .story-map__nav span {
-  color: var(--story-map-muted);
+  color: var(--story-map-muted, var(--story-map-muted-fallback));
   font-size: 0.85rem;
   white-space: nowrap;
 }
 
 @media (max-width: 640px) {
-  .story-map__panel {
+  .story-map .story-map__panel {
     left: 8px;
     right: 8px;
     bottom: 8px;
