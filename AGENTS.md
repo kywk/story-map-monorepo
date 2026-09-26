@@ -2,18 +2,21 @@
 
 ## Mission
 
-Deliver the StoryMap v1 MVP described in `SPEC.md` with the least architectural surface necessary.
-
-The Obsidian file-backed MVP is the current behavioral baseline. The active milestone is the Remark/Docusaurus publishing path: make `remark-story-map` resolve the same StoryMap source with equivalent note discovery, ordering, inheritance, and `noteDisplay` semantics, then mount the shared renderer cleanly in Docusaurus.
+Deliver the StoryMap MVP described in `SPEC.md` with the least architectural surface
+necessary. Three hosts share one `StoryMapConfig`: standalone React, the Obsidian
+file-backed view (behavioral reference), and the Docusaurus/Remark publishing path. All
+three are implemented; keep them stable and do not expand scope.
 
 ## Source of truth
 
 1. `SPEC.md` — product and architecture contract.
-2. `docs/implementation-plan.md` — current milestone work order and acceptance checks.
-3. `docs/handoff.md` — current Docusaurus/Remark implementation handoff.
-4. Existing package APIs and tests in this repository.
+2. `docs/architecture.md` — how the current code is structured; read this to work without
+   re-reading every source file.
+3. Existing package APIs and tests in this repository.
 
-If a task conflicts with `SPEC.md`, change the implementation to match the spec rather than inventing a new architecture.
+If a task conflicts with `SPEC.md`, update the implementation to match the spec rather than
+inventing a new architecture. Update the docs when behavior changes (see "Documentation
+hygiene").
 
 ## Current source conventions
 
@@ -21,132 +24,109 @@ If a task conflicts with `SPEC.md`, change the implementation to match the spec 
 - StoryMap note discovery frontmatter: `story-map-note: true`.
 - StoryMap fenced language: `story-map`.
 - StoryMap configuration keys use camelCase.
-- `noteFolder` supports one Vault-relative folder in v1 and includes subfolders recursively.
-- Folder-generated slide order is controlled only by:
-  - `order: asc | desc`, default `asc`;
-  - `dateField`, default `date-created`.
-- Explicit `slides` preserve exact author order and are never implicitly appended to or reordered by folder discovery.
+- `noteFolder` supports one Vault-relative folder and includes subfolders recursively.
+- Folder-generated slide order is controlled only by `order: asc | desc` (default `asc`)
+  and `dateField` (default `date-created`).
+- Explicit `slides` preserve exact author order and are never implicitly appended to or
+  reordered by folder discovery. When `slides` is non-empty, `noteFolder` is ignored.
 - Reuse Leaflet-compatible note metadata such as `location`, `mapmarker`, and `mapzoom`.
 - Note presentation is controlled by `noteDisplay: basic | link | full`, default `link`:
-  - `basic` uses frontmatter metadata only;
-  - `link` adds an adapter-resolved `notePath`;
-  - `full` uses the frontmatter-stripped note body as slide text.
-- `link` is platform-specific only at navigation time:
-  - Obsidian uses callbacks for preview/open behavior;
-  - Docusaurus resolves the final published route and uses a normal browser link.
-- Explicit slide properties override note-derived values.
-- `story-map-core` remains the shared parser/normalization layer; do not duplicate these rules in adapters.
+  `basic` uses frontmatter metadata only; `link` resolves a slide-title link; `full` uses
+  the frontmatter-stripped note body as slide text.
+- `link` is platform-specific only at navigation time: Obsidian supplies callbacks (Page
+  preview on hover, open in new tab on click); Docusaurus resolves the final published
+  route and the renderer emits a normal browser link. `react-story-map` must not import
+  Obsidian or Docusaurus APIs.
+- Defaultable `story-map` keys (Obsidian plugin settings): `order`, `dateField`,
+  `noteDisplay`, and `map.zoom`, `map.minZoom`, `map.maxZoom`, `map.tileUrl`,
+  `map.attribution`, `map.showPath`. Keys that vary per document — `schema`, `id`, `title`,
+  `noteFolder`, `map.center`, `slides`, `height` — must stay document-only and must not be
+  added to plugin settings or defaults. Resolution order for defaultable keys is always:
+  1. the key present in the document's `story-map` block;
+  2. otherwise the plugin setting;
+  3. otherwise the built-in code default.
+  (`height` is forced to `100%` in the Obsidian full-leaf host; Remark uses document values
+  plus built-in defaults and does not mirror the Obsidian settings UI.)
+- When adding or changing a defaultable key, add it to the `story-map-core` schema and
+  `applySourceDefaults`, to `packages/obsidian-story-map/src/settings-data.ts`, expose it in
+  `settings-tab.ts`, and cover the precedence in `story-map-core` parser tests. Do not
+  re-implement defaulting in the view; use `parseStoryMapSourceYaml(source, defaults)`.
 
-## Current Docusaurus milestone decisions
+## Docusaurus / Remark rules
 
-- `remark-story-map` is the build-time platform adapter.
-- `react-story-map` remains the only StoryMap renderer.
-- Remark must not initialize Leaflet during build.
-- Docusaurus route/slug rules are host-owned. Add a small route resolver hook; do not add StoryMap-specific slug normalization.
-- In the target `kywk.github.io` site, `scripts/content-links.js` / `remark-slug-normalizer` remains the route authority.
-- `vaultRoot` scanning must skip obvious tooling/output directories such as dot-directories, `node_modules`, `build`, `dist`, and `coverage`.
-- Relative media must use source context:
-  - note-derived media resolves relative to the note;
-  - explicit slide media resolves relative to the StoryMap source document.
-- The browser client must handle Docusaurus SPA insertion/removal without duplicate mounts or leaked React roots.
-- Docusaurus theme adaptation belongs in a host CSS bridge using StoryMap semantic variables.
-- Lazy-loading client renderer code is desirable when a page actually contains StoryMap hosts, but do not redesign package boundaries to achieve it.
-
-## Obsidian default settings
-
-Defaultable `story-map` keys in the Obsidian plugin remain:
-
-- `order`
-- `dateField`
-- `noteDisplay`
-- `map.zoom`
-- `map.minZoom`
-- `map.maxZoom`
-- `map.tileUrl`
-- `map.attribution`
-- `map.showPath`
-
-Resolution order is:
-
-1. document block;
-2. Obsidian plugin setting;
-3. built-in default.
-
-Per-document keys (`schema`, `id`, `title`, `noteFolder`, `map.center`, `slides`, `height`) must not become global plugin defaults.
-
-The Remark adapter does not need to mirror Obsidian Settings UI; it uses source values plus built-in defaults.
+- Docusaurus route/slug rules are host-owned. Use the `resolveNoteHref` hook; do not add
+  StoryMap-specific slug normalization. In the target `kywk.github.io` site,
+  `scripts/content-links.js` / `remark-slug-normalizer` is the route authority.
+- `vaultRoot` scanning must skip dot-directories, `node_modules`, `build`, `dist`, and
+  `coverage`.
+- Relative media uses source context: note-derived media resolves relative to the note;
+  explicit slide media resolves relative to the StoryMap source document.
+- The browser client must handle Docusaurus SPA insertion/removal without duplicate mounts
+  or leaked React roots.
+- Theme adaptation belongs in a host CSS bridge mapping Infima variables onto the
+  renderer's `--story-map-*` variables; do not hard-code Docusaurus variables in
+  `react-story-map` except as optional fallbacks.
 
 ## Non-goals
 
 Do not introduce unless explicitly requested:
 
 - Nx, Turborepo, Bazel, changesets, semantic-release;
-- Redux/Zustand;
-- React Leaflet;
-- MapLibre;
-- visual editors;
-- scroll-driven storytelling;
-- a generic plugin framework;
+- Redux/Zustand, React Leaflet, MapLibre;
+- visual editors, scroll-driven storytelling, a generic plugin framework;
 - premature abstraction for multiple map engines;
 - multiple `noteFolder` sources;
 - generic `sortBy`, grouping, filtering, or query syntax;
 - a generic route/slug framework;
-- automated copying of all Vault assets;
-- marker popup parity with the old Docusaurus Leaflet plugin;
-- advanced marker icons or `mapzoom` visibility semantics;
-- WikiLink/embed expansion inside full note Markdown.
+- automatic full Markdown-open interception through `WorkspaceLeaf` monkey patches (a
+  scoped `setViewState` wrapper may still open detected `story-map: true` documents in the
+  StoryMap view by default);
+- marker popup/icon parity or `mapzoom` visibility semantics;
+- WikiLink/embed expansion inside `noteDisplay: full` Markdown.
+
+A future map adapter can be added later. The MVP renderer directly owns the Leaflet
+lifecycle inside `react-story-map`.
 
 ## Package boundaries
 
-### `packages/story-map-core`
+- `packages/story-map-core` — framework agnostic; no DOM, React, Leaflet, Obsidian,
+  Docusaurus, or Node filesystem dependencies; schema, parsing, defaults, pure helpers; no
+  folder scanning or file reads.
+- `packages/react-story-map` — owns UI and Leaflet rendering, semantic CSS variables, and
+  generic note-link rendering from a resolved `notePath`; SSR-import-safe (Leaflet is
+  dynamically imported inside client effects only); no Obsidian/Docusaurus/Node APIs; no
+  knowledge of `noteFolder`, Vault scanning, or slug rules.
+- `packages/obsidian-story-map` — Obsidian APIs allowed; file-backed `TextFileView`; parses
+  the fence; resolves Vault content and `noteFolder`; passes a standard `StoryMapConfig` to
+  the renderer; supports Markdown <-> StoryMap switching; opens detected documents in the
+  StoryMap view by default via a scoped `setViewState` wrapper; must not intercept unrelated
+  Markdown opens.
+- `packages/remark-story-map` — build-time entry (`index.ts`, `vault.ts`) may use Node
+  `fs`; browser entry (`client.tsx`) must not and lazy-loads the renderer; never initializes
+  Leaflet during build; resolves notes, ordering, `noteDisplay`, routes, and media into
+  `StoryMapConfig`; does not own slug policy.
 
-- framework agnostic;
-- no DOM, React, Leaflet, Obsidian, Docusaurus, or Node filesystem dependencies;
-- owns schema, parsing behavior, source defaults, WikiLink parsing, date sorting, frontmatter stripping, and small normalization helpers;
-- does not scan folders or read files.
-
-### `packages/react-story-map`
-
-- owns UI and Leaflet rendering;
-- must remain SSR-import-safe;
-- dynamically imports Leaflet inside client effects;
-- owns generic resize handling such as `invalidateSize()`;
-- may render a normal `href` when `slide.notePath` exists and no platform callback is supplied;
-- must not import Obsidian, Docusaurus, or Node filesystem APIs;
-- must not know about `noteFolder`, Vault scanning, or slug rules.
-
-### `packages/obsidian-story-map`
-
-- is the existing platform reference implementation;
-- may import Obsidian APIs;
-- resolves Vault-specific content and `noteFolder`;
-- passes a resolved `StoryMapConfig` to the renderer;
-- preserves Markdown <-> StoryMap view switching and existing behavior;
-- is not the active feature-development target unless a cross-package regression requires a fix.
-
-### `packages/remark-story-map`
-
-- build-time entry may use Node filesystem APIs;
-- browser client entry must not use Node APIs;
-- resolves explicit notes, `noteFolder`, ordering, note display, routes, and media into a standard `StoryMapConfig`;
-- transforms content but never initializes Leaflet during build;
-- browser runtime mounts/unmounts shared React StoryMaps;
-- does not own Docusaurus slug policy.
+See `docs/architecture.md` for the file-level map and public APIs.
 
 ## Collaboration rules
 
-When multiple agents work in parallel:
-
 - each agent owns one package directory;
-- the main work owner is `packages/remark-story-map/**`;
-- renderer changes required for normal `notePath` links belong to `packages/react-story-map/**`;
-- shared helpers belong to `packages/story-map-core/**` only when they are truly platform-neutral;
-- avoid editing Obsidian package files unless fixing a regression;
 - avoid editing root config unless assigned as integrator;
 - do not rename shared public types without coordinating consumers;
 - prefer small commits grouped by package responsibility;
-- add focused tests before expanding implementation;
+- add focused tests for parser/normalization/order/display logic before expanding behavior;
+- integration fixes belong to the integrator after package work is complete;
 - do not expand sorting beyond `order` + `dateField`.
+
+## Documentation hygiene
+
+- Keep `README.md`, `SPEC.md`, and `AGENTS.md` short and current; implementation detail goes
+  in `docs/architecture.md`.
+- Archive completed plans under `docs/history/<YYYY-MM-DD>-<slug>/`; delete
+  development-process notes once their work is merged.
+- When behavior changes, update the matching doc in the same change.
+- The repeatable workflow lives in the `docs-maintenance` skill at
+  `.agents/skills/docs-maintenance/SKILL.md`.
 
 ## Definition of done
 
@@ -159,19 +139,17 @@ pnpm test
 pnpm build
 ```
 
-Then smoke-test:
+Then manually smoke-test:
 
-1. existing standalone React rendering still works;
-2. existing Obsidian tests/build remain green;
-3. Remark explicit note resolution;
-4. recursive `noteFolder` discovery;
-5. asc/desc date ordering;
-6. `noteDisplay` basic/link/full;
+1. standalone React rendering;
+2. Obsidian full-leaf StoryMap view lifecycle and Markdown <-> StoryMap switching;
+3. recursive `noteFolder` discovery and `dateField` ordering in both directions;
+4. explicit slide ordering unaffected by folder settings;
+5. split-pane resize/Leaflet invalidation;
+6. Remark transform output, including `noteDisplay` basic/link/full;
 7. source-relative and note-relative media;
-8. multiple StoryMaps on one page;
-9. browser host removal unmounts the corresponding React root;
-10. Docusaurus SSR/build never initializes Leaflet;
-11. Docusaurus theme bridge renders readable light/dark UI;
-12. target-site route resolver uses the existing published-content index.
+8. multiple StoryMaps on one page and clean SPA host removal;
+9. Docusaurus SSR/build never initializes Leaflet;
+10. Docusaurus light/dark theme bridge renders readable UI.
 
 Do not mark deferred features as implemented unless they are tested end to end.
